@@ -1,0 +1,351 @@
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { useQuiz } from "../../context/QuizContext";
+import SessionCodeDisplay from "../../components/SessionCodeDisplay";
+import ProgressBar from "../../components/ProgressBar";
+import { useMemo } from "react";
+
+export default function HostSession() {
+  const { code } = useParams();
+  const navigate = useNavigate();
+  const {
+    getSession,
+    getQuiz,
+    startSession,
+    advanceQuestion,
+    endSession,
+    updateSession,
+  } = useQuiz();
+
+  const session = getSession(code);
+
+  if (!session) {
+    return (
+      <div className="max-w-xl mx-auto text-center py-20 px-4">
+        <div className="text-5xl mb-3">🔍</div>
+        <h2 className="text-2xl font-bold mb-2">Session not found</h2>
+        <p className="text-slate-600 mb-6">
+          This session may have ended or the code is invalid.
+        </p>
+        <Link to="/teacher" className="btn-primary">
+          Back to Dashboard
+        </Link>
+      </div>
+    );
+  }
+
+  const quiz = getQuiz(session.quizId);
+  const currentQ = quiz?.questions[session.currentQuestionIndex];
+
+  // Count answers for current question
+  const answerStats = useMemo(() => {
+    if (!currentQ) return { total: 0, counts: [0, 0, 0, 0] };
+    const counts = currentQ.choices.map(() => 0);
+    let total = 0;
+    session.participants.forEach((p) => {
+      const ans = p.answers.find((a) => a.questionId === currentQ.id);
+      if (ans) {
+        counts[ans.choiceIndex] = (counts[ans.choiceIndex] || 0) + 1;
+        total++;
+      }
+    });
+    return { total, counts };
+  }, [session, currentQ]);
+
+  const handleStart = () => {
+    if (session.participants.length === 0) {
+      if (!confirm("No students have joined yet. Start anyway?")) return;
+    }
+    startSession(session.code);
+  };
+
+  const handleNext = () => {
+    if (session.currentQuestionIndex >= session.totalQuestions - 1) {
+      endSession(session.code);
+      navigate(`/teacher/results/${session.code}`);
+    } else {
+      advanceQuestion(session.code);
+    }
+  };
+
+  const handleEnd = () => {
+    if (confirm("End this session now?")) {
+      endSession(session.code);
+      navigate(`/teacher/results/${session.code}`);
+    }
+  };
+
+  // === Lobby view ===
+  if (session.status === "lobby") {
+    return (
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-6">
+          <span className="badge-brand">Lobby — Waiting Room</span>
+          <h1 className="text-3xl font-extrabold text-slate-900 mt-2">
+            {session.quizTitle}
+          </h1>
+          <p className="text-slate-600">
+            {session.quizSubject} · {session.totalQuestions} questions
+          </p>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-6">
+          <SessionCodeDisplay code={session.code} />
+
+          <div className="card p-6">
+            <h3 className="font-bold text-slate-900 mb-4">Session Settings</h3>
+            <div className="space-y-3">
+              <label className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
+                <span className="text-sm font-semibold text-slate-700">
+                  🤝 Team Mode
+                </span>
+                <input
+                  type="checkbox"
+                  checked={session.teamMode}
+                  onChange={(e) =>
+                    updateSession(session.code, { teamMode: e.target.checked })
+                  }
+                  className="w-5 h-5 accent-brand-600"
+                />
+              </label>
+              <label className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
+                <span className="text-sm font-semibold text-slate-700">
+                  ⏱️ Question Timer
+                </span>
+                <input
+                  type="checkbox"
+                  checked={session.timerEnabled}
+                  onChange={(e) =>
+                    updateSession(session.code, {
+                      timerEnabled: e.target.checked,
+                    })
+                  }
+                  className="w-5 h-5 accent-brand-600"
+                />
+              </label>
+              {session.timerEnabled && (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Seconds per question
+                  </span>
+                  <input
+                    type="number"
+                    min="5"
+                    max="120"
+                    value={session.timerSeconds}
+                    onChange={(e) =>
+                      updateSession(session.code, {
+                        timerSeconds: parseInt(e.target.value) || 20,
+                      })
+                    }
+                    className="w-20 px-2 py-1 rounded-lg border-2 border-slate-200 text-center font-semibold"
+                  />
+                </div>
+              )}
+            </div>
+
+            <button onClick={handleStart} className="btn-primary w-full mt-6">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              Start Quiz ({session.participants.length} joined)
+            </button>
+          </div>
+        </div>
+
+        <div className="card p-6 mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-slate-900">Students Joined</h3>
+            <span className="badge-brand">{session.participants.length}</span>
+          </div>
+          {session.participants.length === 0 ? (
+            <div className="text-center py-10 text-slate-500">
+              <div className="text-4xl mb-2">👥</div>
+              <p>Waiting for students to join...</p>
+              <p className="text-sm mt-1">
+                Share the code above on your screen.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {session.participants.map((p) => (
+                <span
+                  key={p.id}
+                  className="badge-brand !text-sm !px-3 !py-1.5 animate-pop"
+                >
+                  {p.name}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // === Running view ===
+  if (session.status === "running" && currentQ) {
+    const answeredCount = answerStats.total;
+    const totalParticipants = session.participants.length;
+
+    return (
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <span className="badge-success">● Live Session</span>
+            <h1 className="text-2xl font-extrabold text-slate-900 mt-1">
+              {session.quizTitle}
+            </h1>
+          </div>
+          <button onClick={handleEnd} className="btn-danger !py-2 text-sm">
+            End Session
+          </button>
+        </div>
+
+        <ProgressBar
+          value={session.currentQuestionIndex + 1}
+          max={session.totalQuestions}
+          className="mb-6"
+        />
+
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 card p-6">
+            <span className="badge-brand mb-3">
+              Question {session.currentQuestionIndex + 1} of{" "}
+              {session.totalQuestions}
+            </span>
+            <h2 className="text-xl font-bold text-slate-900 mb-5">
+              {currentQ.text}
+            </h2>
+            <div className="space-y-3">
+              {currentQ.choices.map((choice, idx) => {
+                const count = answerStats.counts[idx];
+                const pct = answerStats.total
+                  ? Math.round((count / answerStats.total) * 100)
+                  : 0;
+                const isCorrect = idx === currentQ.correctIndex;
+                return (
+                  <div
+                    key={idx}
+                    className={`relative p-3 rounded-xl border-2 overflow-hidden ${isCorrect ? "border-success-500 bg-emerald-50" : "border-slate-200 bg-white"}`}
+                  >
+                    <div
+                      className="absolute inset-y-0 left-0 bg-brand-100/50"
+                      style={{ width: `${pct}%` }}
+                    ></div>
+                    <div className="relative flex items-center gap-3">
+                      <span
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${isCorrect ? "bg-success-500 text-white" : "bg-slate-100 text-slate-600"}`}
+                      >
+                        {String.fromCharCode(65 + idx)}
+                      </span>
+                      <span className="flex-1 font-medium">{choice}</span>
+                      <span className="text-sm font-bold text-slate-700">
+                        {count} · {pct}%
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 flex items-center justify-between pt-4 border-t border-slate-100">
+              <div className="text-sm text-slate-600">
+                <span className="font-bold text-slate-900">
+                  {answeredCount}
+                </span>{" "}
+                of{" "}
+                <span className="font-bold text-slate-900">
+                  {totalParticipants}
+                </span>{" "}
+                answered
+              </div>
+              <button onClick={handleNext} className="btn-primary">
+                {session.currentQuestionIndex >= session.totalQuestions - 1
+                  ? "Finish & View Results"
+                  : "Next Question"}
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div className="card p-6">
+            <h3 className="font-bold text-slate-900 mb-3">Live Leaderboard</h3>
+            <div className="space-y-2">
+              {[...session.participants]
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 10)
+                .map((p, i) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold ${
+                          i === 0
+                            ? "bg-amber-400 text-white"
+                            : i === 1
+                              ? "bg-slate-300 text-white"
+                              : i === 2
+                                ? "bg-amber-700 text-white"
+                                : "bg-slate-200 text-slate-600"
+                        }`}
+                      >
+                        {i + 1}
+                      </span>
+                      <span className="font-medium text-sm text-slate-800 truncate">
+                        {p.name}
+                      </span>
+                    </div>
+                    <span className="font-bold text-brand-700 text-sm">
+                      {p.score} pts
+                    </span>
+                  </div>
+                ))}
+              {session.participants.length === 0 && (
+                <p className="text-sm text-slate-500 text-center py-4">
+                  No participants yet.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Finished — redirect to results
+  if (session.status === "finished") {
+    navigate(`/teacher/results/${session.code}`);
+  }
+
+  return null;
+}
