@@ -9,8 +9,8 @@ export default function QuestionCard({
   disabled = false,
 }) {
   return (
-    <div className="card p-6 sm:p-8 animate-slide-up">
-      <div className="flex items-center justify-between mb-4">
+    <div className="card p-5 sm:p-8 animate-slide-up">
+      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
         <span className="badge-brand">
           Question {questionNumber} of {totalQuestions}
         </span>
@@ -25,11 +25,11 @@ export default function QuestionCard({
         )}
       </div>
 
-      <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-6 leading-snug">
+      <h2 className="text-lg sm:text-2xl font-bold text-slate-900 mb-5 sm:mb-6 leading-snug break-words">
         {question.text}
       </h2>
 
-      <div className="grid gap-3">
+      <div className="grid gap-2.5 sm:gap-3">
         {question.choices.map((choice, idx) => {
           const isSelected = selectedIndex === idx;
           const isCorrect = revealed && idx === correctIndex;
@@ -49,10 +49,10 @@ export default function QuestionCard({
               key={idx}
               disabled={disabled}
               onClick={() => !disabled && onAnswer(idx)}
-              className={`flex items-center gap-4 text-left p-4 sm:p-5 rounded-2xl border-2 transition-all duration-200 ${style} disabled:cursor-not-allowed`}
+              className={`flex items-center gap-3 sm:gap-4 text-left p-3 sm:p-5 rounded-xl sm:rounded-2xl border-2 transition-all duration-200 ${style} disabled:cursor-not-allowed`}
             >
               <span
-                className={`flex-shrink-0 w-10 h-10 rounded-xl font-bold flex items-center justify-center ${
+                className={`flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl font-bold flex items-center justify-center text-sm sm:text-base ${
                   isCorrect
                     ? "bg-success-500 text-white"
                     : isWrongPick
@@ -64,12 +64,12 @@ export default function QuestionCard({
               >
                 {String.fromCharCode(65 + idx)}
               </span>
-              <span className="flex-1 text-base sm:text-lg font-medium text-slate-800">
+              <span className="flex-1 text-sm sm:text-lg font-medium text-slate-800 break-words min-w-0">
                 {choice}
               </span>
               {isCorrect && (
                 <svg
-                  className="w-6 h-6 text-success-500 flex-shrink-0"
+                  className="w-5 h-5 sm:w-6 sm:h-6 text-success-500 flex-shrink-0"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -84,7 +84,7 @@ export default function QuestionCard({
               )}
               {isWrongPick && (
                 <svg
-                  className="w-6 h-6 text-danger-500 flex-shrink-0"
+                  className="w-5 h-5 sm:w-6 sm:h-6 text-danger-500 flex-shrink-0"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"

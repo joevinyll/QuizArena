@@ -12,11 +12,11 @@ export default function SessionCodeDisplay({ code, label = "Session Code" }) {
   };
 
   return (
-    <div className="bg-gradient-to-br from-brand-500 to-brand-700 rounded-3xl p-8 shadow-soft text-white text-center">
-      <p className="text-brand-100 uppercase text-xs font-bold tracking-widest mb-3">
+    <div className="bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-soft text-white text-center">
+      <p className="text-brand-100 uppercase text-[10px] sm:text-xs font-bold tracking-widest mb-2 sm:mb-3">
         {label}
       </p>
-      <div className="code-display text-5xl sm:text-6xl font-extrabold mb-4 select-all">
+      <div className="font-mono font-extrabold tracking-[0.2em] xs:tracking-[0.3em] sm:tracking-[0.4em] text-center text-3xl xs:text-4xl sm:text-5xl md:text-6xl mb-4 select-all break-all">
         {code}
       </div>
       <button

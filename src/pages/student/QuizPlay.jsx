@@ -137,32 +137,32 @@ export default function QuizPlay() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       {/* Header bar */}
-      <div className="flex items-center justify-between mb-4 gap-3">
-        <div className="min-w-0">
-          <div className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
+      <div className="flex items-center justify-between mb-4 gap-2 sm:gap-3 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <div className="text-[10px] sm:text-xs text-slate-500 font-semibold uppercase tracking-wider">
             You are
           </div>
-          <div className="font-bold text-slate-900 truncate">
+          <div className="font-bold text-slate-900 truncate text-sm sm:text-base">
             {me.name}
             {me.team && (
-              <span className="text-brand-600 font-semibold text-sm">
+              <span className="text-brand-600 font-semibold text-xs sm:text-sm">
                 {" "}
                 · {me.team}
               </span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           {timeLeft !== null && (
             <div
-              className={`px-3 py-1.5 rounded-xl font-bold text-sm ${timeLeft <= 5 ? "bg-rose-100 text-rose-700 animate-pulse" : "bg-brand-100 text-brand-700"}`}
+              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl font-bold text-xs sm:text-sm ${timeLeft <= 5 ? "bg-rose-100 text-rose-700 animate-pulse" : "bg-brand-100 text-brand-700"}`}
             >
               ⏱️ {timeLeft}s
             </div>
           )}
-          <div className="px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-700 font-bold text-sm">
+          <div className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-emerald-100 text-emerald-700 font-bold text-xs sm:text-sm whitespace-nowrap">
             ⭐ {myScore} pts
           </div>
         </div>

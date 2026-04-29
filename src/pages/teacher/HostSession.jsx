@@ -77,21 +77,21 @@ export default function HostSession() {
   // === Lobby view ===
   if (session.status === "lobby") {
     return (
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <span className="badge-brand">Lobby — Waiting Room</span>
-          <h1 className="text-3xl font-extrabold text-slate-900 mt-2">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="mb-5 sm:mb-6">
+          <span className="badge-brand inline-block">Lobby — Waiting Room</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2 break-words">
             {session.quizTitle}
           </h1>
-          <p className="text-slate-600">
+          <p className="text-sm sm:text-base text-slate-600">
             {session.quizSubject} · {session.totalQuestions} questions
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
           <SessionCodeDisplay code={session.code} />
 
-          <div className="card p-6">
+          <div className="card p-5 sm:p-6">
             <h3 className="font-bold text-slate-900 mb-4">Session Settings</h3>
             <div className="space-y-3">
               <label className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
@@ -143,9 +143,12 @@ export default function HostSession() {
               )}
             </div>
 
-            <button onClick={handleStart} className="btn-primary w-full mt-6">
+            <button
+              onClick={handleStart}
+              className="btn-primary w-full mt-6 text-sm sm:text-base"
+            >
               <svg
-                className="w-5 h-5"
+                className="w-5 h-5 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -163,12 +166,14 @@ export default function HostSession() {
                   d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              Start Quiz ({session.participants.length} joined)
+              <span className="truncate">
+                Start Quiz ({session.participants.length} joined)
+              </span>
             </button>
           </div>
         </div>
 
-        <div className="card p-6 mt-6">
+        <div className="card p-5 sm:p-6 mt-4 sm:mt-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-slate-900">Students Joined</h3>
             <span className="badge-brand">{session.participants.length}</span>
@@ -204,16 +209,20 @@ export default function HostSession() {
     const totalParticipants = session.participants.length;
 
     return (
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <span className="badge-success">● Live Session</span>
-            <h1 className="text-2xl font-extrabold text-slate-900 mt-1">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="min-w-0 flex-1">
+            <span className="badge-success inline-block">● Live Session</span>
+            <h1 className="text-lg sm:text-2xl font-extrabold text-slate-900 mt-1 truncate">
               {session.quizTitle}
             </h1>
           </div>
-          <button onClick={handleEnd} className="btn-danger !py-2 text-sm">
-            End Session
+          <button
+            onClick={handleEnd}
+            className="btn-danger !py-2 !px-3 sm:!px-5 text-xs sm:text-sm flex-shrink-0"
+          >
+            End
+            <span className="hidden sm:inline">&nbsp;Session</span>
           </button>
         </div>
 
@@ -223,13 +232,13 @@ export default function HostSession() {
           className="mb-6"
         />
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 card p-6">
-            <span className="badge-brand mb-3">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="lg:col-span-2 card p-5 sm:p-6">
+            <span className="badge-brand mb-3 inline-block">
               Question {session.currentQuestionIndex + 1} of{" "}
               {session.totalQuestions}
             </span>
-            <h2 className="text-xl font-bold text-slate-900 mb-5">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-5 break-words">
               {currentQ.text}
             </h2>
             <div className="space-y-3">
@@ -248,14 +257,16 @@ export default function HostSession() {
                       className="absolute inset-y-0 left-0 bg-brand-100/50"
                       style={{ width: `${pct}%` }}
                     ></div>
-                    <div className="relative flex items-center gap-3">
+                    <div className="relative flex items-center gap-2 sm:gap-3">
                       <span
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${isCorrect ? "bg-success-500 text-white" : "bg-slate-100 text-slate-600"}`}
+                        className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center font-bold text-xs sm:text-sm flex-shrink-0 ${isCorrect ? "bg-success-500 text-white" : "bg-slate-100 text-slate-600"}`}
                       >
                         {String.fromCharCode(65 + idx)}
                       </span>
-                      <span className="flex-1 font-medium">{choice}</span>
-                      <span className="text-sm font-bold text-slate-700">
+                      <span className="flex-1 font-medium text-sm sm:text-base break-words">
+                        {choice}
+                      </span>
+                      <span className="text-xs sm:text-sm font-bold text-slate-700 flex-shrink-0 whitespace-nowrap">
                         {count} · {pct}%
                       </span>
                     </div>
@@ -264,8 +275,8 @@ export default function HostSession() {
               })}
             </div>
 
-            <div className="mt-6 flex items-center justify-between pt-4 border-t border-slate-100">
-              <div className="text-sm text-slate-600">
+            <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-slate-100">
+              <div className="text-sm text-slate-600 text-center sm:text-left">
                 <span className="font-bold text-slate-900">
                   {answeredCount}
                 </span>{" "}
@@ -275,7 +286,10 @@ export default function HostSession() {
                 </span>{" "}
                 answered
               </div>
-              <button onClick={handleNext} className="btn-primary">
+              <button
+                onClick={handleNext}
+                className="btn-primary w-full sm:w-auto"
+              >
                 {session.currentQuestionIndex >= session.totalQuestions - 1
                   ? "Finish & View Results"
                   : "Next Question"}
@@ -296,7 +310,7 @@ export default function HostSession() {
             </div>
           </div>
 
-          <div className="card p-6">
+          <div className="card p-5 sm:p-6">
             <h3 className="font-bold text-slate-900 mb-3">Live Leaderboard</h3>
             <div className="space-y-2">
               {[...session.participants]

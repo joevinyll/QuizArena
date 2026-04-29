@@ -4,21 +4,21 @@ export default function Home() {
   return (
     <div className="relative overflow-hidden">
       {/* Hero */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-16 pb-10 sm:pb-12">
         <div className="text-center max-w-3xl mx-auto animate-fade-in">
-          <span className="badge-brand mb-4">
+          <span className="badge-brand mb-4 inline-block">
             🎓 Collaborative Learning Platform
           </span>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-slate-900 leading-tight tracking-tight">
+          <h1 className="text-3xl xs:text-4xl sm:text-5xl md:text-6xl font-extrabold text-slate-900 leading-tight tracking-tight">
             Learning quizzes that <span className="text-brand-600">engage</span>
             , not just compete.
           </h1>
-          <p className="mt-5 text-lg text-slate-600 leading-relaxed">
+          <p className="mt-4 sm:mt-5 text-base sm:text-lg text-slate-600 leading-relaxed px-2 sm:px-0">
             QuizArena is a classroom quiz platform focused on participation,
             feedback, and learning progress — not just speed and leaderboards.
           </p>
 
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
             <Link
               to="/join"
               className="btn-primary text-base !px-7 !py-3.5 w-full sm:w-auto"
@@ -61,7 +61,7 @@ export default function Home() {
         </div>
 
         {/* Decorative cards preview */}
-        <div className="mt-16 grid md:grid-cols-3 gap-5 max-w-5xl mx-auto">
+        <div className="mt-12 sm:mt-16 grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 max-w-5xl mx-auto">
           <FeatureCard
             icon="🔑"
             title="Session Code System"
@@ -96,17 +96,17 @@ export default function Home() {
       </section>
 
       {/* How it works */}
-      <section className="bg-white border-y border-slate-100 py-16 mt-8">
+      <section className="bg-white border-y border-slate-100 py-12 sm:py-16 mt-8">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-10">
-            <h2 className="text-3xl font-extrabold text-slate-900">
+          <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-10">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
               How it works
             </h2>
-            <p className="mt-2 text-slate-600">
+            <p className="mt-2 text-sm sm:text-base text-slate-600">
               Three simple steps to start a collaborative quiz.
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
             <Step
               n="1"
               title="Teacher creates a quiz"
@@ -127,10 +127,12 @@ export default function Home() {
       </section>
 
       {/* HCI principles */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-10">
-          <span className="badge-slate mb-3">HCI · UX Principles</span>
-          <h2 className="text-3xl font-extrabold text-slate-900">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+        <div className="text-center mb-8 sm:mb-10">
+          <span className="badge-slate mb-3 inline-block">
+            HCI · UX Principles
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
             Built around the way people learn
           </h2>
         </div>
