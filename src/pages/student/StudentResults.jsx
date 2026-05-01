@@ -7,7 +7,7 @@ export default function StudentResults() {
   const { code } = useParams();
   const { getSession, getQuiz } = useQuiz();
   const session = getSession(code);
-  const quiz = session ? getQuiz(session.quizId) : null;
+  const quiz = session ? getQuiz(session.quizId) || session.quizSnapshot : null;
 
   const me = useMemo(() => {
     try {

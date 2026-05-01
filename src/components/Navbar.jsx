@@ -1,9 +1,14 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useFirebase } from "../context/FirebaseContext.jsx";
+import { useRole } from "../context/RoleContext.jsx";
 
 export default function Navbar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, logout } = useFirebase();
+  const { clearRole } = useRole();
   const isActive = (path) => location.pathname === path;
 
   // Close mobile menu on route change
@@ -17,6 +22,12 @@ export default function Navbar() {
         ? "bg-brand-100 text-brand-700"
         : "text-slate-600 hover:bg-slate-100"
     }`;
+
+  const handleLogout = async () => {
+    await logout();
+    clearRole();
+    navigate("/");
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200">
@@ -83,6 +94,23 @@ export default function Navbar() {
               </svg>
               Join
             </Link>
+
+            {user ? (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="btn-secondary text-xs sm:text-sm !px-3 sm:!px-4 !py-1.5 sm:!py-2"
+              >
+                Logout
+              </button>
+            ) : (
+              <Link
+                to="/teacher/login"
+                className="btn-primary text-xs sm:text-sm !px-3 sm:!px-4 !py-1.5 sm:!py-2"
+              >
+                Teacher Login
+              </Link>
+            )}
 
             {/* Mobile hamburger */}
             <button

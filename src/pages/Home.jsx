@@ -1,6 +1,20 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useRole } from "../context/RoleContext.jsx";
 
 export default function Home() {
+  const navigate = useNavigate();
+  const { setUserRole } = useRole();
+
+  const handleStudentRole = () => {
+    setUserRole("student");
+    navigate("/join");
+  };
+
+  const handleTeacherRole = () => {
+    setUserRole("teacher");
+    navigate("/teacher");
+  };
+
   return (
     <div className="relative overflow-hidden">
       {/* Hero */}
@@ -19,8 +33,8 @@ export default function Home() {
           </p>
 
           <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
-            <Link
-              to="/join"
+            <button
+              onClick={handleStudentRole}
               className="btn-primary text-base !px-7 !py-3.5 w-full sm:w-auto"
             >
               <svg
@@ -37,9 +51,9 @@ export default function Home() {
                 />
               </svg>
               I'm a Student — Join a Quiz
-            </Link>
-            <Link
-              to="/teacher"
+            </button>
+            <button
+              onClick={handleTeacherRole}
               className="btn-secondary text-base !px-7 !py-3.5 w-full sm:w-auto"
             >
               <svg
@@ -56,7 +70,7 @@ export default function Home() {
                 />
               </svg>
               I'm a Teacher — Host a Quiz
-            </Link>
+            </button>
           </div>
         </div>
 

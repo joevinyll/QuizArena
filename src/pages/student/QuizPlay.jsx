@@ -10,7 +10,7 @@ export default function QuizPlay() {
   const { getSession, getQuiz, submitAnswer } = useQuiz();
 
   const session = getSession(code);
-  const quiz = session ? getQuiz(session.quizId) : null;
+  const quiz = session ? getQuiz(session.quizId) || session.quizSnapshot : null;
 
   const me = useMemo(() => {
     try {

@@ -6,27 +6,34 @@ import {
   useCallback,
   useRef,
 } from "react";
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import { db } from "../firebase.js";
+import { useFirebase } from "./FirebaseContext.jsx";
 import { initialQuizzes, initialSessions } from "../data/mockData";
 import { generateSessionCode, generateId } from "../utils/helpers";
 
 const QuizContext = createContext(null);
 
-const QUIZZES_KEY = "qa_quizzes";
 const SESSIONS_KEY = "qa_sessions";
-
-function readQuizzes() {
-  try {
-    const stored = localStorage.getItem(QUIZZES_KEY);
-    return stored ? JSON.parse(stored) : initialQuizzes;
-  } catch {
-    return initialQuizzes;
-  }
-}
 
 function readSessions() {
   try {
     const stored = localStorage.getItem(SESSIONS_KEY);
-    return stored ? JSON.parse(stored) : initialSessions;
+    if (!stored) return initialSessions;
+    const parsed = JSON.parse(stored);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : initialSessions;
   } catch {
     return initialSessions;
   }
@@ -40,23 +47,54 @@ function writeSessions(sessions) {
 }
 
 export function QuizProvider({ children }) {
-  const [quizzes, setQuizzes] = useState(readQuizzes);
+  const { user } = useFirebase();
+  const [quizzes, setQuizzes] = useState(initialQuizzes);
+  const [quizzesLoading, setQuizzesLoading] = useState(false);
+  const [quizzesError, setQuizzesError] = useState(null);
   // Sessions stored in localStorage (shared across all tabs) — mock real-time layer
   const [sessions, setSessions] = useState(readSessions);
 
-  const lastQuizzesJson = useRef(JSON.stringify(quizzes));
   const lastSessionsJson = useRef(JSON.stringify(sessions));
 
-  // Persist quizzes to localStorage
+  // Load teacher-owned quizzes from Firestore. Logged-out users see samples.
   useEffect(() => {
-    const json = JSON.stringify(quizzes);
-    if (json !== lastQuizzesJson.current) {
-      try {
-        localStorage.setItem(QUIZZES_KEY, json);
-      } catch {}
-      lastQuizzesJson.current = json;
+    if (!user) {
+      setQuizzes(initialQuizzes);
+      setQuizzesLoading(false);
+      setQuizzesError(null);
+      return;
     }
-  }, [quizzes]);
+
+    setQuizzesLoading(true);
+    setQuizzesError(null);
+
+    const teacherQuizzesQuery = query(
+      collection(db, "quizzes"),
+      where("teacherId", "==", user.uid),
+    );
+
+    const unsubscribe = onSnapshot(
+      teacherQuizzesQuery,
+      (snapshot) => {
+        const teacherQuizzes = snapshot.docs
+          .map((document) => ({
+            id: document.id,
+            ...document.data(),
+          }))
+          .sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+
+        setQuizzes(teacherQuizzes);
+        setQuizzesLoading(false);
+      },
+      (err) => {
+        setQuizzesError(err.message || "Unable to load quizzes.");
+        setQuizzes([]);
+        setQuizzesLoading(false);
+      },
+    );
+
+    return () => unsubscribe();
+  }, [user]);
 
   // Persist sessions to localStorage
   useEffect(() => {
@@ -78,15 +116,6 @@ export function QuizProvider({ children }) {
           if (e.newValue !== lastSessionsJson.current) {
             lastSessionsJson.current = e.newValue;
             setSessions(parsed);
-          }
-        } catch {}
-      }
-      if (e.key === QUIZZES_KEY && e.newValue) {
-        try {
-          const parsed = JSON.parse(e.newValue);
-          if (e.newValue !== lastQuizzesJson.current) {
-            lastQuizzesJson.current = e.newValue;
-            setQuizzes(parsed);
           }
         } catch {}
       }
@@ -112,19 +141,111 @@ export function QuizProvider({ children }) {
   }, []);
 
   // ===== Quiz CRUD =====
-  const addQuiz = useCallback((quiz) => {
-    const newQuiz = {
+  const addQuiz = useCallback(async (quiz, teacher) => {
+    const teacherId = typeof teacher === "string" ? teacher : teacher?.uid;
+    const teacherEmail = typeof teacher === "object" ? teacher?.email : null;
+
+    if (!teacherId) {
+      throw new Error("Please sign in as a teacher before saving a quiz.");
+    }
+
+    const createdAt = new Date();
+    const quizPayload = {
       ...quiz,
-      id: generateId("quiz"),
-      createdAt: new Date().toISOString().slice(0, 10),
+      title: quiz.title.trim(),
+      subject: quiz.subject.trim(),
+      description: quiz.description.trim(),
+      questions: quiz.questions.map((question) => ({
+        ...question,
+        text: question.text.trim(),
+        choices: question.choices.map((choice) => choice.trim()),
+        explanation: question.explanation.trim(),
+      })),
+      createdAt: createdAt.toISOString().slice(0, 10),
+      createdAtMs: createdAt.getTime(),
+      teacherId,
+      teacherEmail: teacherEmail || null,
+      updatedAt: serverTimestamp(),
     };
-    setQuizzes((prev) => [newQuiz, ...prev]);
+
+    const documentRef = await addDoc(collection(db, "quizzes"), quizPayload);
+    const newQuiz = {
+      ...quizPayload,
+      id: documentRef.id,
+    };
+
+    setQuizzes((prev) => {
+      const withoutDuplicate = prev.filter((item) => item.id !== newQuiz.id);
+      return [newQuiz, ...withoutDuplicate];
+    });
+
     return newQuiz;
   }, []);
 
-  const deleteQuiz = useCallback((quizId) => {
-    setQuizzes((prev) => prev.filter((q) => q.id !== quizId));
-  }, []);
+  const deleteQuiz = useCallback(async (quizId) => {
+    const quiz = quizzes.find((item) => item.id === quizId);
+
+    if (quiz?.teacherId) {
+      await deleteDoc(doc(db, "quizzes", quizId));
+    }
+
+    setQuizzes((prev) => {
+      const updated = (Array.isArray(prev) ? prev : []).filter(
+        (q) => q.id !== quizId,
+      );
+      return updated;
+    });
+  }, [quizzes]);
+
+  const updateQuiz = useCallback(async (quizId, quiz, teacher) => {
+    const teacherId = typeof teacher === "string" ? teacher : teacher?.uid;
+
+    if (!teacherId) {
+      throw new Error("Please sign in as a teacher before updating a quiz.");
+    }
+
+    const existingQuiz = quizzes.find((item) => item.id === quizId);
+    if (!existingQuiz) {
+      throw new Error("Quiz not found.");
+    }
+
+    if (existingQuiz.teacherId && existingQuiz.teacherId !== teacherId) {
+      throw new Error("You can only edit quizzes from your own account.");
+    }
+
+    const updatedQuiz = {
+      ...existingQuiz,
+      ...quiz,
+      title: quiz.title.trim(),
+      subject: quiz.subject.trim(),
+      description: quiz.description.trim(),
+      questions: quiz.questions.map((question) => ({
+        ...question,
+        text: question.text.trim(),
+        choices: question.choices.map((choice) => choice.trim()),
+        explanation: question.explanation.trim(),
+      })),
+      teacherId,
+      updatedAt: serverTimestamp(),
+    };
+
+    await updateDoc(doc(db, "quizzes", quizId), {
+      title: updatedQuiz.title,
+      subject: updatedQuiz.subject,
+      description: updatedQuiz.description,
+      questions: updatedQuiz.questions,
+      teacherId,
+      updatedAt: serverTimestamp(),
+    });
+
+    setQuizzes((prev) =>
+      prev.map((item) =>
+        item.id === quizId ? { ...updatedQuiz, id: quizId } : item,
+      ),
+    );
+
+    return { ...updatedQuiz, id: quizId };
+  }, [quizzes]);
 
   const getQuiz = useCallback(
     (quizId) => {
@@ -154,6 +275,13 @@ export function QuizProvider({ children }) {
         quizTitle: quiz.title,
         quizSubject: quiz.subject,
         totalQuestions: quiz.questions.length,
+        quizSnapshot: {
+          id: quiz.id,
+          title: quiz.title,
+          subject: quiz.subject,
+          description: quiz.description,
+          questions: quiz.questions,
+        },
         status: "lobby",
         teamMode: !!options.teamMode,
         timerEnabled: !!options.timerEnabled,
@@ -161,6 +289,7 @@ export function QuizProvider({ children }) {
         currentQuestionIndex: 0,
         participants: [],
         teams: [],
+        scores: {}, // { participantId: { name, score, totalCorrect } }
         startedAt: null,
         finishedAt: null,
         createdAt: new Date().toISOString(),
@@ -253,7 +382,8 @@ export function QuizProvider({ children }) {
       const session = current[upper];
       if (!session) return null;
 
-      const quiz = quizzes.find((q) => q.id === session.quizId);
+      const quiz =
+        quizzes.find((q) => q.id === session.quizId) || session.quizSnapshot;
       if (!quiz) return null;
       const question = quiz.questions.find((q) => q.id === questionId);
       if (!question) return null;
@@ -348,8 +478,11 @@ export function QuizProvider({ children }) {
 
   const value = {
     quizzes,
+    quizzesLoading,
+    quizzesError,
     sessions,
     addQuiz,
+    updateQuiz,
     deleteQuiz,
     getQuiz,
     createSession,

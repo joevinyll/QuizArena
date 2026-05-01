@@ -1,15 +1,119 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useQuiz } from "../../context/QuizContext";
+import { useFirebase } from "../../context/FirebaseContext.jsx";
 import { formatDate } from "../../utils/helpers";
 
 export default function TeacherDashboard() {
-  const { quizzes, deleteQuiz, createSession } = useQuiz();
+  const { quizzes, quizzesLoading, quizzesError, deleteQuiz, createSession } =
+    useQuiz();
+  const { user } = useFirebase();
   const navigate = useNavigate();
 
+  // Filter quizzes: if logged in, show only user's quizzes; if not, show all
+  const displayedQuizzes = user
+    ? quizzes.filter((q) => q.teacherId === user.uid)
+    : quizzes;
+
   const handleHost = (quizId) => {
+    if (!user) {
+      navigate("/teacher/login");
+      return;
+    }
     const s = createSession(quizId, { teamMode: false, timerEnabled: false });
     if (s) navigate(`/teacher/host/${s.code}`);
   };
+
+  const handleDelete = async (quiz) => {
+    if (!confirm(`Delete "${quiz.title}"? This cannot be undone.`)) return;
+
+    try {
+      await deleteQuiz(quiz.id);
+    } catch (err) {
+      alert(err.message || "Unable to delete quiz. Please try again.");
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="text-center mb-12">
+          <span className="badge-brand mb-2">Teacher Dashboard</span>
+          <h1 className="text-3xl font-extrabold text-slate-900 mt-3 mb-2">
+            Manage Your Quizzes
+          </h1>
+          <p className="text-slate-600 mb-8">
+            Sign in to create and manage your quizzes, host live sessions, and
+            track student performance.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link to="/teacher/login" className="btn-primary">
+              Sign in
+            </Link>
+            <Link to="/teacher/register" className="btn-secondary">
+              Create Account
+            </Link>
+          </div>
+        </div>
+
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold text-slate-900 mb-6 text-center">
+            Sample Quizzes
+          </h2>
+          {displayedQuizzes.length === 0 ? (
+            <div className="card p-12 text-center">
+              <p className="text-slate-600">No quizzes available.</p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {displayedQuizzes.map((quiz) => (
+                <div
+                  key={quiz.id}
+                  className="card p-6 flex flex-col hover:shadow-soft transition opacity-75 cursor-not-allowed"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <span className="badge-slate">{quiz.subject}</span>
+                  </div>
+                  <h3 className="font-bold text-lg text-slate-900 mb-1">
+                    {quiz.title}
+                  </h3>
+                  <p className="text-sm text-slate-600 mb-4 line-clamp-2 flex-1">
+                    {quiz.description}
+                  </p>
+                  <div className="flex items-center justify-between text-xs text-slate-500 mb-4">
+                    <span className="flex items-center gap-1">
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                        />
+                      </svg>
+                      {quiz.questions.length} question
+                      {quiz.questions.length !== 1 && "s"}
+                    </span>
+                    <span>{formatDate(quiz.createdAt)}</span>
+                  </div>
+                  <button
+                    disabled
+                    className="btn-primary w-full opacity-50 cursor-not-allowed"
+                  >
+                    Sign in to host
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -41,7 +145,18 @@ export default function TeacherDashboard() {
         </Link>
       </div>
 
-      {quizzes.length === 0 ? (
+      {quizzesLoading ? (
+        <div className="card p-12 text-center">
+          <p className="text-slate-600">Loading your quizzes...</p>
+        </div>
+      ) : quizzesError ? (
+        <div className="card p-12 text-center border-rose-200 bg-rose-50">
+          <h3 className="text-xl font-bold text-rose-700 mb-2">
+            Unable to load quizzes
+          </h3>
+          <p className="text-rose-700 text-sm">{quizzesError}</p>
+        </div>
+      ) : displayedQuizzes.length === 0 ? (
         <div className="card p-12 text-center">
           <div className="text-5xl mb-3">📝</div>
           <h3 className="text-xl font-bold text-slate-900 mb-1">
@@ -56,37 +171,53 @@ export default function TeacherDashboard() {
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {quizzes.map((quiz) => (
+          {displayedQuizzes.map((quiz) => (
             <div
               key={quiz.id}
               className="card p-6 flex flex-col hover:shadow-soft transition"
             >
               <div className="flex items-start justify-between mb-3">
                 <span className="badge-slate">{quiz.subject}</span>
-                <button
-                  onClick={() => {
-                    if (
-                      confirm(`Delete "${quiz.title}"? This cannot be undone.`)
-                    )
-                      deleteQuiz(quiz.id);
-                  }}
-                  className="text-slate-400 hover:text-danger-500 transition p-1"
-                  title="Delete quiz"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                <div className="flex items-center gap-1">
+                  <Link
+                    to={`/teacher/edit/${quiz.id}`}
+                    className="text-slate-400 hover:text-brand-600 transition p-1"
+                    title="Edit quiz"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"
-                    />
-                  </svg>
-                </button>
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"
+                      />
+                    </svg>
+                  </Link>
+                  <button
+                    onClick={() => handleDelete(quiz)}
+                    className="text-slate-400 hover:text-danger-500 transition p-1"
+                    title="Delete quiz"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"
+                      />
+                    </svg>
+                  </button>
+                </div>
               </div>
               <h3 className="font-bold text-lg text-slate-900 mb-1">
                 {quiz.title}

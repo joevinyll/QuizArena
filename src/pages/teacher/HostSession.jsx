@@ -33,7 +33,7 @@ export default function HostSession() {
     );
   }
 
-  const quiz = getQuiz(session.quizId);
+  const quiz = getQuiz(session.quizId) || session.quizSnapshot;
   const currentQ = quiz?.questions[session.currentQuestionIndex];
 
   // Count answers for current question

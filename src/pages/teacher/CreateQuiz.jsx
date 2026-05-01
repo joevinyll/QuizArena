@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuiz } from "../../context/QuizContext";
+import { useFirebase } from "../../context/FirebaseContext.jsx";
 import { generateId } from "../../utils/helpers";
 
 const emptyQuestion = () => ({
@@ -11,15 +12,71 @@ const emptyQuestion = () => ({
   explanation: "",
 });
 
+function withTimeout(promise, message, timeoutMs = 12000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(message)), timeoutMs);
+    }),
+  ]);
+}
+
+function getSaveErrorMessage(err) {
+  const message = err?.message || "";
+  const code = err?.code || "";
+
+  if (code === "permission-denied" || message.includes("permission")) {
+    return "Firebase blocked this save. Please check your Firestore rules and make sure the teacher is logged in.";
+  }
+
+  if (code === "unavailable" || message.includes("offline")) {
+    return "Firebase is unreachable right now. Please check your internet connection and Firestore setup.";
+  }
+
+  if (message.includes("timed out")) {
+    return message;
+  }
+
+  return message || "Unable to save quiz. Please try again.";
+}
+
 export default function CreateQuiz() {
-  const { addQuiz } = useQuiz();
+  const { addQuiz, updateQuiz, getQuiz, quizzesLoading } = useQuiz();
+  const { user } = useFirebase();
   const navigate = useNavigate();
+  const { quizId } = useParams();
+  const isEditing = Boolean(quizId);
+  const existingQuiz = useMemo(
+    () => (quizId ? getQuiz(quizId) : null),
+    [getQuiz, quizId],
+  );
 
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [questions, setQuestions] = useState([emptyQuestion()]);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!existingQuiz) return;
+
+    setTitle(existingQuiz.title || "");
+    setSubject(existingQuiz.subject || "");
+    setDescription(existingQuiz.description || "");
+    setQuestions(
+      existingQuiz.questions?.length
+        ? existingQuiz.questions.map((question) => ({
+            ...question,
+            id: question.id || generateId("q"),
+            choices: question.choices?.length
+              ? question.choices
+              : ["", "", "", ""],
+            explanation: question.explanation || "",
+          }))
+        : [emptyQuestion()],
+    );
+  }, [existingQuiz]);
 
   const updateQuestion = (idx, patch) => {
     setQuestions((prev) =>
@@ -58,17 +115,57 @@ export default function CreateQuiz() {
     return "";
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
+    if (!user) {
+      setError("Please sign in as a teacher before saving a quiz.");
+      return;
+    }
+
     const v = validate();
     if (v) {
       setError(v);
       return;
     }
-    setError("");
-    addQuiz({ title, subject, description, questions });
-    navigate("/teacher");
+
+    try {
+      setError("");
+      setSaving(true);
+      const savePromise = isEditing
+        ? updateQuiz(quizId, { title, subject, description, questions }, user)
+        : addQuiz({ title, subject, description, questions }, user);
+      await withTimeout(
+        savePromise,
+        "Saving timed out. Please make sure Firestore Database is created and your Firestore rules allow teacher quiz writes.",
+      );
+      navigate("/teacher");
+    } catch (err) {
+      setError(getSaveErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (isEditing && quizzesLoading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="card p-12 text-center">
+          <p className="text-slate-600">Loading quiz...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isEditing && !existingQuiz) {
+    return (
+      <div className="max-w-xl mx-auto text-center py-20 px-4">
+        <h2 className="text-2xl font-bold mb-2">Quiz not found</h2>
+        <Link to="/teacher" className="btn-primary">
+          Back to Dashboard
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -93,11 +190,12 @@ export default function CreateQuiz() {
           Back to Dashboard
         </Link>
         <h1 className="text-3xl font-extrabold text-slate-900 mt-2">
-          Create a New Quiz
+          {isEditing ? "Edit Quiz" : "Create a New Quiz"}
         </h1>
         <p className="text-slate-600 mt-1">
-          Add multiple-choice questions. Include explanations for richer
-          feedback.
+          {isEditing
+            ? "Update questions, choices, and explanations for this quiz."
+            : "Add multiple-choice questions. Include explanations for richer feedback."}
         </p>
       </div>
 
@@ -275,7 +373,7 @@ export default function CreateQuiz() {
           <Link to="/teacher" className="btn-ghost flex-1 sm:flex-none">
             Cancel
           </Link>
-          <button type="submit" className="btn-primary flex-1">
+          <button type="submit" disabled={saving} className="btn-primary flex-1">
             <svg
               className="w-5 h-5"
               fill="none"
@@ -289,9 +387,21 @@ export default function CreateQuiz() {
                 d="M5 13l4 4L19 7"
               />
             </svg>
-            Save Quiz
+            {saving
+              ? isEditing
+                ? "Updating..."
+                : "Saving..."
+              : isEditing
+                ? "Update Quiz"
+                : "Save Quiz"}
           </button>
         </div>
+
+        {error && (
+          <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm font-medium">
+            {error}
+          </div>
+        )}
       </form>
     </div>
   );

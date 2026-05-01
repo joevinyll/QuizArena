@@ -6,6 +6,10 @@ import TeacherDashboard from "./pages/teacher/TeacherDashboard";
 import CreateQuiz from "./pages/teacher/CreateQuiz";
 import HostSession from "./pages/teacher/HostSession";
 import ResultsDashboard from "./pages/teacher/ResultsDashboard";
+import TeacherLogin from "./pages/teacher/TeacherLogin";
+import TeacherRegister from "./pages/teacher/TeacherRegister";
+import RequireAuth from "./components/RequireAuth";
+import RequireStudent from "./components/RequireStudent";
 import JoinSession from "./pages/student/JoinSession";
 import StudentLobby from "./pages/student/StudentLobby";
 import QuizPlay from "./pages/student/QuizPlay";
@@ -20,16 +24,69 @@ export default function App() {
           <Route path="/" element={<Home />} />
 
           {/* Teacher routes */}
+          <Route path="/teacher/login" element={<TeacherLogin />} />
+          <Route path="/teacher/register" element={<TeacherRegister />} />
+
           <Route path="/teacher" element={<TeacherDashboard />} />
-          <Route path="/teacher/create" element={<CreateQuiz />} />
-          <Route path="/teacher/host/:code" element={<HostSession />} />
-          <Route path="/teacher/results/:code" element={<ResultsDashboard />} />
+          <Route
+            path="/teacher/create"
+            element={
+              <RequireAuth>
+                <CreateQuiz />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/teacher/edit/:quizId"
+            element={
+              <RequireAuth>
+                <CreateQuiz />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/teacher/host/:code"
+            element={
+              <RequireAuth>
+                <HostSession />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/teacher/results/:code"
+            element={
+              <RequireAuth>
+                <ResultsDashboard />
+              </RequireAuth>
+            }
+          />
 
           {/* Student routes */}
           <Route path="/join" element={<JoinSession />} />
-          <Route path="/student/lobby/:code" element={<StudentLobby />} />
-          <Route path="/student/play/:code" element={<QuizPlay />} />
-          <Route path="/student/results/:code" element={<StudentResults />} />
+          <Route
+            path="/student/lobby/:code"
+            element={
+              <RequireStudent>
+                <StudentLobby />
+              </RequireStudent>
+            }
+          />
+          <Route
+            path="/student/play/:code"
+            element={
+              <RequireStudent>
+                <QuizPlay />
+              </RequireStudent>
+            }
+          />
+          <Route
+            path="/student/results/:code"
+            element={
+              <RequireStudent>
+                <StudentResults />
+              </RequireStudent>
+            }
+          />
 
           {/* Fallback */}
           <Route
