@@ -285,8 +285,10 @@ export function QuizProvider({ children }) {
         status: "lobby",
         teamMode: !!options.teamMode,
         timerEnabled: !!options.timerEnabled,
-        timerSeconds: options.timerSeconds || 20,
+        timerSeconds: Math.max(5, Number(options.timerSeconds) || 20),
+        pointsPerCorrect: options.pointsPerCorrect || 1,
         currentQuestionIndex: 0,
+        questionStartedAt: null,
         participants: [],
         teams: [],
         scores: {}, // { participantId: { name, score, totalCorrect } }
@@ -389,16 +391,23 @@ export function QuizProvider({ children }) {
       if (!question) return null;
 
       const correct = choiceIndex === question.correctIndex;
+      const pointsPerCorrect = Math.max(0, Number(session.pointsPerCorrect) || 1);
 
       const updatedParticipants = session.participants.map((p) => {
         if (p.id !== participantId) return p;
         if (p.answers.find((a) => a.questionId === questionId)) return p;
         return {
           ...p,
-          score: p.score + (correct ? 1 : 0),
+          score: p.score + (correct ? pointsPerCorrect : 0),
           answers: [
             ...p.answers,
-            { questionId, choiceIndex, correct, timestamp: Date.now() },
+            {
+              questionId,
+              choiceIndex,
+              correct,
+              points: correct ? pointsPerCorrect : 0,
+              timestamp: Date.now(),
+            },
           ],
         };
       });
@@ -436,7 +445,11 @@ export function QuizProvider({ children }) {
         finishedAt: new Date().toISOString(),
       };
     } else {
-      updatedSession = { ...s, currentQuestionIndex: next };
+      updatedSession = {
+        ...s,
+        currentQuestionIndex: next,
+        questionStartedAt: Date.now(),
+      };
     }
     const updated = { ...current, [upper]: updatedSession };
     writeSessions(updated);
@@ -453,6 +466,7 @@ export function QuizProvider({ children }) {
       ...s,
       status: "running",
       startedAt: new Date().toISOString(),
+      questionStartedAt: Date.now(),
     };
     const updated = { ...current, [upper]: updatedSession };
     writeSessions(updated);

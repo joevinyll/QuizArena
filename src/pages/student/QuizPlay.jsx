@@ -29,6 +29,21 @@ export default function QuizPlay() {
 
   const currentQ = quiz?.questions[session?.currentQuestionIndex ?? 0] || null;
 
+  const calculateSyncedTimeLeft = () => {
+    if (
+      !session?.timerEnabled ||
+      session.status !== "running" ||
+      !session.questionStartedAt
+    ) {
+      return null;
+    }
+
+    const elapsedSeconds = Math.floor(
+      (Date.now() - session.questionStartedAt) / 1000,
+    );
+    return Math.max(0, session.timerSeconds - elapsedSeconds);
+  };
+
   // Restore answered state on mount/question-change (handles page refresh)
   // If the participant already answered the current question, show the revealed state.
   useEffect(() => {
@@ -49,46 +64,60 @@ export default function QuizPlay() {
       });
       setTimeLeft(null); // stop timer since already answered
     } else {
-      // Fresh question — reset state and (re)start timer if enabled
+      // Fresh question — reset state and sync timer from shared session time.
       setSelectedIndex(null);
       setRevealed(false);
       setLastResult(null);
-      if (session.timerEnabled && session.status === "running") {
-        setTimeLeft(session.timerSeconds);
-      } else {
-        setTimeLeft(null);
-      }
+      setTimeLeft(calculateSyncedTimeLeft());
     }
   }, [
     session?.currentQuestionIndex,
     session?.status,
+    session?.questionStartedAt,
+    session?.timerEnabled,
+    session?.timerSeconds,
     currentQ?.id,
     me?.id,
     // intentionally not depending on participants array (would reset on every poll)
   ]);
 
-  // Timer countdown
+  // Timer countdown synced to the teacher's shared questionStartedAt timestamp.
   useEffect(() => {
-    if (timeLeft === null || revealed || session?.status !== "running") return;
-    if (timeLeft <= 0) {
-      // Time out — auto-submit with no answer (mark as incorrect)
-      if (selectedIndex === null && currentQ && me) {
-        // submit -1 (no choice)
-        const result = submitAnswer(code, me.id, currentQ.id, -1);
-        setLastResult(result);
-      }
-      setRevealed(true);
+    if (
+      !session?.timerEnabled ||
+      !session.questionStartedAt ||
+      revealed ||
+      session.status !== "running"
+    ) {
+      setTimeLeft(null);
       return;
     }
-    const t = setTimeout(() => setTimeLeft((v) => v - 1), 1000);
-    return () => clearTimeout(t);
+
+    const syncTimer = () => {
+      const nextTimeLeft = calculateSyncedTimeLeft();
+      setTimeLeft(nextTimeLeft);
+
+      if (nextTimeLeft <= 0) {
+        if (selectedIndex === null && currentQ && me) {
+          const result = submitAnswer(code, me.id, currentQ.id, -1);
+          setLastResult(result);
+        }
+        setRevealed(true);
+      }
+    };
+
+    syncTimer();
+    const interval = setInterval(syncTimer, 250);
+    return () => clearInterval(interval);
   }, [
-    timeLeft,
-    revealed,
+    session?.timerEnabled,
+    session?.questionStartedAt,
+    session?.timerSeconds,
     session?.status,
+    revealed,
     selectedIndex,
-    currentQ,
-    me,
+    currentQ?.id,
+    me?.id,
     code,
     submitAnswer,
   ]);

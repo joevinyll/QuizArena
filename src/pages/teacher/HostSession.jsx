@@ -134,13 +134,36 @@ export default function HostSession() {
                     value={session.timerSeconds}
                     onChange={(e) =>
                       updateSession(session.code, {
-                        timerSeconds: parseInt(e.target.value) || 20,
+                        timerSeconds: Math.max(
+                          5,
+                          parseInt(e.target.value, 10) || 5,
+                        ),
                       })
                     }
                     className="w-20 px-2 py-1 rounded-lg border-2 border-slate-200 text-center font-semibold"
                   />
                 </div>
               )}
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
+                <span className="text-sm font-semibold text-slate-700">
+                  Points per correct answer
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={session.pointsPerCorrect ?? 1}
+                  onChange={(e) =>
+                    updateSession(session.code, {
+                      pointsPerCorrect: Math.max(
+                        0,
+                        parseInt(e.target.value, 10) || 0,
+                      ),
+                    })
+                  }
+                  className="w-20 px-2 py-1 rounded-lg border-2 border-slate-200 text-center font-semibold"
+                />
+              </div>
             </div>
 
             <button

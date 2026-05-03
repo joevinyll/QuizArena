@@ -34,7 +34,8 @@ export default function StudentResults() {
     ? session.participants.find((p) => p.id === me.id)
     : null;
   const myScore = myParticipant?.score || 0;
-  const total = session.totalQuestions;
+  const pointsPerCorrect = Math.max(0, Number(session.pointsPerCorrect) || 1);
+  const total = session.totalQuestions * pointsPerCorrect;
   const percent = calculatePercent(myScore, total);
 
   // Ranking

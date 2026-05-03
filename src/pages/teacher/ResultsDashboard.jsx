@@ -19,11 +19,13 @@ export default function ResultsDashboard() {
     );
   }
 
-  const quiz = getQuiz(session.quizId);
+  const quiz = getQuiz(session.quizId) || session.quizSnapshot;
 
   const stats = useMemo(() => {
     const totalParticipants = session.participants.length;
     const totalQuestions = session.totalQuestions;
+    const pointsPerCorrect = Math.max(0, Number(session.pointsPerCorrect) || 1);
+    const totalPoints = totalQuestions * pointsPerCorrect;
 
     // Sort students by score
     const ranked = [...session.participants].sort((a, b) => b.score - a.score);
@@ -33,8 +35,8 @@ export default function ResultsDashboard() {
       ? session.participants.reduce((sum, p) => sum + p.score, 0) /
         totalParticipants
       : 0;
-    const classAccuracy = totalQuestions
-      ? calculatePercent(avgScore, totalQuestions)
+    const classAccuracy = totalPoints
+      ? calculatePercent(avgScore, totalPoints)
       : 0;
 
     // Per-question stats
@@ -64,6 +66,8 @@ export default function ResultsDashboard() {
     return {
       totalParticipants,
       totalQuestions,
+      totalPoints,
+      pointsPerCorrect,
       ranked,
       avgScore,
       classAccuracy,
@@ -104,13 +108,18 @@ export default function ResultsDashboard() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         <SummaryCard
           label="Participants"
           value={stats.totalParticipants}
           icon="👥"
         />
         <SummaryCard label="Questions" value={stats.totalQuestions} icon="📝" />
+        <SummaryCard
+          label="Points Each"
+          value={stats.pointsPerCorrect}
+          icon="➕"
+        />
         <SummaryCard
           label="Class Accuracy"
           value={`${stats.classAccuracy}%`}
@@ -136,7 +145,7 @@ export default function ResultsDashboard() {
           ) : (
             <div className="space-y-2">
               {stats.ranked.map((p, i) => {
-                const pct = calculatePercent(p.score, session.totalQuestions);
+                const pct = calculatePercent(p.score, stats.totalPoints);
                 return (
                   <div
                     key={p.id}
@@ -167,7 +176,7 @@ export default function ResultsDashboard() {
                       </div>
                     </div>
                     <span className="font-bold text-brand-700 w-20 text-right text-sm">
-                      {p.score}/{session.totalQuestions} · {pct}%
+                      {p.score}/{stats.totalPoints} · {calculatePercent(p.score, stats.totalPoints)}%
                     </span>
                   </div>
                 );
