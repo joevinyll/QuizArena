@@ -3,6 +3,7 @@ export const initialQuizzes = [
   {
     id: "quiz_sample_1",
     isSample: true,
+    teacherName: "QuizArena",
     title: "Introduction to Photosynthesis",
     subject: "Biology",
     description: "A short review on how plants convert sunlight into energy.",
@@ -44,6 +45,7 @@ export const initialQuizzes = [
   {
     id: "quiz_sample_2",
     isSample: true,
+    teacherName: "QuizArena",
     title: "World Capitals Review",
     subject: "Geography",
     description: "Test your knowledge of countries and their capital cities.",
@@ -77,6 +79,7 @@ export const initialQuizzes = [
   {
     id: "quiz_sample_3",
     isSample: true,
+    teacherName: "QuizArena",
     title: "Basic Algebra Warm-Up",
     subject: "Mathematics",
     description: "Quick review of linear equations and arithmetic.",
