@@ -2,7 +2,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuiz } from "../../context/QuizContext";
 import SessionCodeDisplay from "../../components/SessionCodeDisplay";
 import ProgressBar from "../../components/ProgressBar";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function HostSession() {
   const { code } = useParams();
@@ -21,6 +21,7 @@ export default function HostSession() {
   const quiz = session ? getQuiz(session.quizId) || session.quizSnapshot : null;
   const currentQ = quiz?.questions[session?.currentQuestionIndex ?? 0];
   const [teamName, setTeamName] = useState("");
+  const [timeLeft, setTimeLeft] = useState(null);
 
   // Count answers for current question
   const answerStats = useMemo(() => {
@@ -38,6 +39,33 @@ export default function HostSession() {
     });
     return { total, counts };
   }, [session, currentQ]);
+
+  useEffect(() => {
+    if (
+      !session?.timerEnabled ||
+      session.status !== "running" ||
+      !session.questionStartedAt
+    ) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const syncTimer = () => {
+      const elapsedSeconds = Math.floor(
+        (Date.now() - session.questionStartedAt) / 1000,
+      );
+      setTimeLeft(Math.max(0, session.timerSeconds - elapsedSeconds));
+    };
+
+    syncTimer();
+    const interval = setInterval(syncTimer, 250);
+    return () => clearInterval(interval);
+  }, [
+    session?.timerEnabled,
+    session?.status,
+    session?.questionStartedAt,
+    session?.timerSeconds,
+  ]);
 
   const teamStandings = useMemo(() => {
     if (!session?.teamMode) return [];
@@ -349,13 +377,22 @@ export default function HostSession() {
               {session.quizTitle}
             </h1>
           </div>
-          <button
-            onClick={handleEnd}
-            className="btn-danger !py-2 !px-3 sm:!px-5 text-xs sm:text-sm flex-shrink-0"
-          >
-            End
-            <span className="hidden sm:inline">&nbsp;Session</span>
-          </button>
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            {timeLeft !== null && (
+              <div
+                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl font-bold text-xs sm:text-sm ${timeLeft <= 5 ? "bg-rose-100 text-rose-700 animate-pulse" : "bg-brand-100 text-brand-700"}`}
+              >
+                ⏱️ {timeLeft}s
+              </div>
+            )}
+            <button
+              onClick={handleEnd}
+              className="btn-danger !py-2 !px-3 sm:!px-5 text-xs sm:text-sm flex-shrink-0"
+            >
+              End
+              <span className="hidden sm:inline">&nbsp;Session</span>
+            </button>
+          </div>
         </div>
 
         <ProgressBar
