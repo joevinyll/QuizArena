@@ -2,10 +2,11 @@
 export const initialQuizzes = [
   {
     id: "quiz_sample_1",
+    isSample: true,
     title: "Introduction to Photosynthesis",
     subject: "Biology",
     description: "A short review on how plants convert sunlight into energy.",
-    createdAt: "2025-01-10",
+    createdAt: "2026-05-05",
     questions: [
       {
         id: "q1",
@@ -42,10 +43,11 @@ export const initialQuizzes = [
   },
   {
     id: "quiz_sample_2",
+    isSample: true,
     title: "World Capitals Review",
     subject: "Geography",
     description: "Test your knowledge of countries and their capital cities.",
-    createdAt: "2025-01-12",
+    createdAt: "2026-05-05",
     questions: [
       {
         id: "q1",
@@ -74,10 +76,11 @@ export const initialQuizzes = [
   },
   {
     id: "quiz_sample_3",
+    isSample: true,
     title: "Basic Algebra Warm-Up",
     subject: "Mathematics",
     description: "Quick review of linear equations and arithmetic.",
-    createdAt: "2025-01-15",
+    createdAt: "2026-05-05",
     questions: [
       {
         id: "q1",

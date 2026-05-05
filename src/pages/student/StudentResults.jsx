@@ -5,7 +5,7 @@ import { calculatePercent } from "../../utils/helpers";
 
 export default function StudentResults() {
   const { code } = useParams();
-  const { getSession, getQuiz } = useQuiz();
+  const { getSession, getQuiz, sessionsLoading } = useQuiz();
   const session = getSession(code);
   const quiz = session ? getQuiz(session.quizId) || session.quizSnapshot : null;
 
@@ -18,6 +18,14 @@ export default function StudentResults() {
       return null;
     }
   }, [code]);
+
+  if (sessionsLoading) {
+    return (
+      <div className="max-w-xl mx-auto text-center py-20 px-4">
+        <p className="text-slate-600">Loading results...</p>
+      </div>
+    );
+  }
 
   if (!session || !quiz) {
     return (

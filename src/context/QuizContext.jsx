@@ -4,57 +4,35 @@ import {
   useState,
   useEffect,
   useCallback,
-  useRef,
 } from "react";
 import {
   addDoc,
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   query,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
 } from "firebase/firestore";
 import { db } from "../firebase.js";
 import { useFirebase } from "./FirebaseContext.jsx";
-import { initialQuizzes, initialSessions } from "../data/mockData";
+import { initialQuizzes } from "../data/mockData";
 import { generateSessionCode, generateId } from "../utils/helpers";
 
 const QuizContext = createContext(null);
-
-const SESSIONS_KEY = "qa_sessions";
-
-function readSessions() {
-  try {
-    const stored = localStorage.getItem(SESSIONS_KEY);
-    if (!stored) return initialSessions;
-    const parsed = JSON.parse(stored);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? parsed
-      : initialSessions;
-  } catch {
-    return initialSessions;
-  }
-}
-
-// Helper: write sessions to localStorage immediately (used for live updates)
-function writeSessions(sessions) {
-  try {
-    localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
-  } catch {}
-}
 
 export function QuizProvider({ children }) {
   const { user } = useFirebase();
   const [quizzes, setQuizzes] = useState(initialQuizzes);
   const [quizzesLoading, setQuizzesLoading] = useState(false);
   const [quizzesError, setQuizzesError] = useState(null);
-  // Sessions stored in localStorage (shared across all tabs) — mock real-time layer
-  const [sessions, setSessions] = useState(readSessions);
-
-  const lastSessionsJson = useRef(JSON.stringify(sessions));
+  const [sessions, setSessions] = useState({});
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [sessionsError, setSessionsError] = useState(null);
 
   // Load teacher-owned quizzes from Firestore. Logged-out users see samples.
   useEffect(() => {
@@ -83,7 +61,7 @@ export function QuizProvider({ children }) {
           }))
           .sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
 
-        setQuizzes(teacherQuizzes);
+        setQuizzes([...teacherQuizzes, ...initialQuizzes]);
         setQuizzesLoading(false);
       },
       (err) => {
@@ -96,48 +74,31 @@ export function QuizProvider({ children }) {
     return () => unsubscribe();
   }, [user]);
 
-  // Persist sessions to localStorage
+  // Load live sessions from Firestore so different devices stay in sync.
   useEffect(() => {
-    const json = JSON.stringify(sessions);
-    if (json !== lastSessionsJson.current) {
-      try {
-        localStorage.setItem(SESSIONS_KEY, json);
-      } catch {}
-      lastSessionsJson.current = json;
-    }
-  }, [sessions]);
+    setSessionsLoading(true);
+    setSessionsError(null);
 
-  // Cross-tab sync: listen for storage events from OTHER tabs
-  useEffect(() => {
-    const onStorage = (e) => {
-      if (e.key === SESSIONS_KEY && e.newValue) {
-        try {
-          const parsed = JSON.parse(e.newValue);
-          if (e.newValue !== lastSessionsJson.current) {
-            lastSessionsJson.current = e.newValue;
-            setSessions(parsed);
-          }
-        } catch {}
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+    const unsubscribe = onSnapshot(
+      collection(db, "sessions"),
+      (snapshot) => {
+        const liveSessions = {};
+        snapshot.docs.forEach((document) => {
+          liveSessions[document.id] = {
+            ...document.data(),
+            code: document.id,
+          };
+        });
+        setSessions(liveSessions);
+        setSessionsLoading(false);
+      },
+      (err) => {
+        setSessionsError(err.message || "Unable to load live sessions.");
+        setSessionsLoading(false);
+      },
+    );
 
-  // Polling fallback (every 600ms) — ensures same-tab components stay in sync
-  // even when storage events don't fire (e.g., same-origin same-tab writes).
-  // This is essential so teacher sees student joins in real-time.
-  useEffect(() => {
-    const interval = setInterval(() => {
-      try {
-        const raw = localStorage.getItem(SESSIONS_KEY);
-        if (raw && raw !== lastSessionsJson.current) {
-          lastSessionsJson.current = raw;
-          setSessions(JSON.parse(raw));
-        }
-      } catch {}
-    }, 600);
-    return () => clearInterval(interval);
+    return () => unsubscribe();
   }, []);
 
   // ===== Quiz CRUD =====
@@ -255,19 +216,18 @@ export function QuizProvider({ children }) {
   );
 
   // ===== Session management =====
-  // NOTE: we do synchronous reads from localStorage for "write" operations,
-  // so updates propagate to other tabs instantly (not waiting for React state flush).
-
   const createSession = useCallback(
-    (quizId, options = {}) => {
+    async (quizId, options = {}) => {
       const quiz = quizzes.find((q) => q.id === quizId);
       if (!quiz) return null;
 
-      const currentSessions = readSessions();
       let code;
+      let exists = false;
       do {
         code = generateSessionCode();
-      } while (currentSessions[code]);
+        const existingSession = await getDoc(doc(db, "sessions", code));
+        exists = existingSession.exists() || Boolean(sessions[code]);
+      } while (exists);
 
       const newSession = {
         code,
@@ -297,13 +257,11 @@ export function QuizProvider({ children }) {
         createdAt: new Date().toISOString(),
       };
 
-      const updated = { ...currentSessions, [code]: newSession };
-      writeSessions(updated);
-      lastSessionsJson.current = JSON.stringify(updated);
-      setSessions(updated);
+      await setDoc(doc(db, "sessions", code), newSession);
+      setSessions((prev) => ({ ...prev, [code]: newSession }));
       return newSession;
     },
-    [quizzes],
+    [quizzes, sessions],
   );
 
   const getSession = useCallback(
@@ -314,25 +272,35 @@ export function QuizProvider({ children }) {
     [sessions],
   );
 
-  const updateSession = useCallback((code, updater) => {
+  const loadSession = useCallback(async (code) => {
+    if (!code) return null;
     const upper = code.toUpperCase();
-    const current = readSessions();
-    const existing = current[upper];
+    if (sessions[upper]) return sessions[upper];
+
+    const snapshot = await getDoc(doc(db, "sessions", upper));
+    if (!snapshot.exists()) return null;
+
+    const session = { ...snapshot.data(), code: upper };
+    setSessions((prev) => ({ ...prev, [upper]: session }));
+    return session;
+  }, [sessions]);
+
+  const updateSession = useCallback(async (code, updater) => {
+    const upper = code.toUpperCase();
+    const existing = sessions[upper] || (await loadSession(upper));
     if (!existing) return;
     const updatedSession =
       typeof updater === "function"
         ? updater(existing)
         : { ...existing, ...updater };
-    const updated = { ...current, [upper]: updatedSession };
-    writeSessions(updated);
-    lastSessionsJson.current = JSON.stringify(updated);
-    setSessions(updated);
-  }, []);
+    await setDoc(doc(db, "sessions", upper), updatedSession);
+    setSessions((prev) => ({ ...prev, [upper]: updatedSession }));
+    return updatedSession;
+  }, [loadSession, sessions]);
 
-  const joinSession = useCallback((code, name, team = null) => {
+  const joinSession = useCallback(async (code, name, team = null) => {
     const upper = code.toUpperCase();
-    const current = readSessions();
-    const session = current[upper];
+    const session = await loadSession(upper);
 
     if (!session)
       return {
@@ -364,24 +332,20 @@ export function QuizProvider({ children }) {
       ...session,
       participants: [...session.participants, participant],
     };
-    const updated = { ...current, [upper]: updatedSession };
-
-    writeSessions(updated);
-    lastSessionsJson.current = JSON.stringify(updated);
-    setSessions(updated);
+    await setDoc(doc(db, "sessions", upper), updatedSession);
+    setSessions((prev) => ({ ...prev, [upper]: updatedSession }));
 
     return {
       ok: true,
       participant,
       session: updatedSession,
     };
-  }, []);
+  }, [loadSession]);
 
   const submitAnswer = useCallback(
-    (code, participantId, questionId, choiceIndex) => {
+    async (code, participantId, questionId, choiceIndex) => {
       const upper = code.toUpperCase();
-      const current = readSessions();
-      const session = current[upper];
+      const session = await loadSession(upper);
       if (!session) return null;
 
       const quiz =
@@ -416,11 +380,8 @@ export function QuizProvider({ children }) {
         ...session,
         participants: updatedParticipants,
       };
-      const updated = { ...current, [upper]: updatedSession };
-
-      writeSessions(updated);
-      lastSessionsJson.current = JSON.stringify(updated);
-      setSessions(updated);
+      await setDoc(doc(db, "sessions", upper), updatedSession);
+      setSessions((prev) => ({ ...prev, [upper]: updatedSession }));
 
       return {
         correct,
@@ -428,13 +389,12 @@ export function QuizProvider({ children }) {
         explanation: question.explanation,
       };
     },
-    [quizzes],
+    [loadSession, quizzes],
   );
 
-  const advanceQuestion = useCallback((code) => {
+  const advanceQuestion = useCallback(async (code) => {
     const upper = code.toUpperCase();
-    const current = readSessions();
-    const s = current[upper];
+    const s = await loadSession(upper);
     if (!s) return;
     const next = s.currentQuestionIndex + 1;
     let updatedSession;
@@ -451,16 +411,14 @@ export function QuizProvider({ children }) {
         questionStartedAt: Date.now(),
       };
     }
-    const updated = { ...current, [upper]: updatedSession };
-    writeSessions(updated);
-    lastSessionsJson.current = JSON.stringify(updated);
-    setSessions(updated);
-  }, []);
+    await setDoc(doc(db, "sessions", upper), updatedSession);
+    setSessions((prev) => ({ ...prev, [upper]: updatedSession }));
+    return updatedSession;
+  }, [loadSession]);
 
-  const startSession = useCallback((code) => {
+  const startSession = useCallback(async (code) => {
     const upper = code.toUpperCase();
-    const current = readSessions();
-    const s = current[upper];
+    const s = await loadSession(upper);
     if (!s) return;
     const updatedSession = {
       ...s,
@@ -468,39 +426,39 @@ export function QuizProvider({ children }) {
       startedAt: new Date().toISOString(),
       questionStartedAt: Date.now(),
     };
-    const updated = { ...current, [upper]: updatedSession };
-    writeSessions(updated);
-    lastSessionsJson.current = JSON.stringify(updated);
-    setSessions(updated);
-  }, []);
+    await setDoc(doc(db, "sessions", upper), updatedSession);
+    setSessions((prev) => ({ ...prev, [upper]: updatedSession }));
+    return updatedSession;
+  }, [loadSession]);
 
-  const endSession = useCallback((code) => {
+  const endSession = useCallback(async (code) => {
     const upper = code.toUpperCase();
-    const current = readSessions();
-    const s = current[upper];
+    const s = await loadSession(upper);
     if (!s) return;
     const updatedSession = {
       ...s,
       status: "finished",
       finishedAt: new Date().toISOString(),
     };
-    const updated = { ...current, [upper]: updatedSession };
-    writeSessions(updated);
-    lastSessionsJson.current = JSON.stringify(updated);
-    setSessions(updated);
-  }, []);
+    await setDoc(doc(db, "sessions", upper), updatedSession);
+    setSessions((prev) => ({ ...prev, [upper]: updatedSession }));
+    return updatedSession;
+  }, [loadSession]);
 
   const value = {
     quizzes,
     quizzesLoading,
     quizzesError,
     sessions,
+    sessionsLoading,
+    sessionsError,
     addQuiz,
     updateQuiz,
     deleteQuiz,
     getQuiz,
     createSession,
     getSession,
+    loadSession,
     updateSession,
     joinSession,
     submitAnswer,

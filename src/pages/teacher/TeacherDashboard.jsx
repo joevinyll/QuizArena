@@ -11,16 +11,23 @@ export default function TeacherDashboard() {
 
   // Filter quizzes: if logged in, show only user's quizzes; if not, show all
   const displayedQuizzes = user
-    ? quizzes.filter((q) => q.teacherId === user.uid)
+    ? quizzes.filter((q) => q.isSample || q.teacherId === user.uid)
     : quizzes;
 
-  const handleHost = (quizId) => {
+  const handleHost = async (quizId) => {
     if (!user) {
       navigate("/teacher/login");
       return;
     }
-    const s = createSession(quizId, { teamMode: false, timerEnabled: false });
-    if (s) navigate(`/teacher/host/${s.code}`);
+    try {
+      const s = await createSession(quizId, {
+        teamMode: false,
+        timerEnabled: false,
+      });
+      if (s) navigate(`/teacher/host/${s.code}`);
+    } catch (err) {
+      alert(err.message || "Unable to host this quiz. Please try again.");
+    }
   };
 
   const handleDelete = async (quiz) => {
@@ -178,46 +185,48 @@ export default function TeacherDashboard() {
             >
               <div className="flex items-start justify-between mb-3">
                 <span className="badge-slate">{quiz.subject}</span>
-                <div className="flex items-center gap-1">
-                  <Link
-                    to={`/teacher/edit/${quiz.id}`}
-                    className="text-slate-400 hover:text-brand-600 transition p-1"
-                    title="Edit quiz"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                {!quiz.isSample && (
+                  <div className="flex items-center gap-1">
+                    <Link
+                      to={`/teacher/edit/${quiz.id}`}
+                      className="text-slate-400 hover:text-brand-600 transition p-1"
+                      title="Edit quiz"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"
-                      />
-                    </svg>
-                  </Link>
-                  <button
-                    onClick={() => handleDelete(quiz)}
-                    className="text-slate-400 hover:text-danger-500 transition p-1"
-                    title="Delete quiz"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"
+                        />
+                      </svg>
+                    </Link>
+                    <button
+                      onClick={() => handleDelete(quiz)}
+                      className="text-slate-400 hover:text-danger-500 transition p-1"
+                      title="Delete quiz"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"
-                      />
-                    </svg>
-                  </button>
-                </div>
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
               <h3 className="font-bold text-lg text-slate-900 mb-1">
                 {quiz.title}

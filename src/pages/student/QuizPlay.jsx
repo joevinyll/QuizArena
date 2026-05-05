@@ -7,7 +7,7 @@ import ProgressBar from "../../components/ProgressBar";
 export default function QuizPlay() {
   const { code } = useParams();
   const navigate = useNavigate();
-  const { getSession, getQuiz, submitAnswer } = useQuiz();
+  const { getSession, getQuiz, sessionsLoading, submitAnswer } = useQuiz();
 
   const session = getSession(code);
   const quiz = session ? getQuiz(session.quizId) || session.quizSnapshot : null;
@@ -93,13 +93,13 @@ export default function QuizPlay() {
       return;
     }
 
-    const syncTimer = () => {
+    const syncTimer = async () => {
       const nextTimeLeft = calculateSyncedTimeLeft();
       setTimeLeft(nextTimeLeft);
 
       if (nextTimeLeft <= 0) {
         if (selectedIndex === null && currentQ && me) {
-          const result = submitAnswer(code, me.id, currentQ.id, -1);
+          const result = await submitAnswer(code, me.id, currentQ.id, -1);
           setLastResult(result);
         }
         setRevealed(true);
@@ -129,6 +129,14 @@ export default function QuizPlay() {
     if (session.status === "lobby") navigate(`/student/lobby/${code}`);
   }, [session, code, navigate]);
 
+  if (sessionsLoading) {
+    return (
+      <div className="max-w-xl mx-auto text-center py-20 px-4">
+        <p className="text-slate-600">Loading session...</p>
+      </div>
+    );
+  }
+
   if (!session || !quiz) {
     return (
       <div className="max-w-xl mx-auto text-center py-20 px-4">
@@ -157,10 +165,10 @@ export default function QuizPlay() {
   const myParticipant = session.participants.find((p) => p.id === me.id);
   const myScore = myParticipant?.score || 0;
 
-  const handleAnswer = (idx) => {
+  const handleAnswer = async (idx) => {
     if (revealed || !currentQ) return;
     setSelectedIndex(idx);
-    const result = submitAnswer(code, me.id, currentQ.id, idx);
+    const result = await submitAnswer(code, me.id, currentQ.id, idx);
     setLastResult(result);
     setRevealed(true);
   };

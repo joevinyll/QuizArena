@@ -5,32 +5,23 @@ import { useMemo } from "react";
 
 export default function ResultsDashboard() {
   const { code } = useParams();
-  const { getSession, getQuiz } = useQuiz();
+  const { getSession, getQuiz, sessionsLoading } = useQuiz();
   const session = getSession(code);
-
-  if (!session) {
-    return (
-      <div className="max-w-xl mx-auto text-center py-20 px-4">
-        <h2 className="text-2xl font-bold mb-2">Session not found</h2>
-        <Link to="/teacher" className="btn-primary">
-          Back to Dashboard
-        </Link>
-      </div>
-    );
-  }
-
-  const quiz = getQuiz(session.quizId) || session.quizSnapshot;
+  const quiz = session ? getQuiz(session.quizId) || session.quizSnapshot : null;
 
   const stats = useMemo(() => {
-    const totalParticipants = session.participants.length;
-    const totalQuestions = session.totalQuestions;
-    const pointsPerCorrect = Math.max(0, Number(session.pointsPerCorrect) || 1);
+    const totalParticipants = session?.participants.length || 0;
+    const totalQuestions = session?.totalQuestions || 0;
+    const pointsPerCorrect = Math.max(
+      0,
+      Number(session?.pointsPerCorrect) || 1,
+    );
     const totalPoints = totalQuestions * pointsPerCorrect;
 
-    // Sort students by score
-    const ranked = [...session.participants].sort((a, b) => b.score - a.score);
+    const ranked = session
+      ? [...session.participants].sort((a, b) => b.score - a.score)
+      : [];
 
-    // Average score
     const avgScore = totalParticipants
       ? session.participants.reduce((sum, p) => sum + p.score, 0) /
         totalParticipants
@@ -39,7 +30,6 @@ export default function ResultsDashboard() {
       ? calculatePercent(avgScore, totalPoints)
       : 0;
 
-    // Per-question stats
     const questionStats = (quiz?.questions || []).map((q) => {
       let answered = 0;
       let correct = 0;
@@ -57,7 +47,6 @@ export default function ResultsDashboard() {
       return { question: q, answered, correct, accuracy, choiceCounts };
     });
 
-    // Hardest questions (lowest accuracy)
     const hardest = [...questionStats]
       .filter((s) => s.answered > 0)
       .sort((a, b) => a.accuracy - b.accuracy)
@@ -75,6 +64,25 @@ export default function ResultsDashboard() {
       hardest,
     };
   }, [session, quiz]);
+
+  if (sessionsLoading) {
+    return (
+      <div className="max-w-xl mx-auto text-center py-20 px-4">
+        <p className="text-slate-600">Loading results...</p>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="max-w-xl mx-auto text-center py-20 px-4">
+        <h2 className="text-2xl font-bold mb-2">Session not found</h2>
+        <Link to="/teacher" className="btn-primary">
+          Back to Dashboard
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">

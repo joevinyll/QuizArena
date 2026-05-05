@@ -14,9 +14,35 @@ export default function HostSession() {
     advanceQuestion,
     endSession,
     updateSession,
+    sessionsLoading,
   } = useQuiz();
 
   const session = getSession(code);
+  const quiz = session ? getQuiz(session.quizId) || session.quizSnapshot : null;
+  const currentQ = quiz?.questions[session?.currentQuestionIndex ?? 0];
+
+  // Count answers for current question
+  const answerStats = useMemo(() => {
+    if (!session || !currentQ) return { total: 0, counts: [0, 0, 0, 0] };
+    const counts = currentQ.choices.map(() => 0);
+    let total = 0;
+    session.participants.forEach((p) => {
+      const ans = p.answers.find((a) => a.questionId === currentQ.id);
+      if (ans) {
+        counts[ans.choiceIndex] = (counts[ans.choiceIndex] || 0) + 1;
+        total++;
+      }
+    });
+    return { total, counts };
+  }, [session, currentQ]);
+
+  if (sessionsLoading) {
+    return (
+      <div className="max-w-xl mx-auto text-center py-20 px-4">
+        <p className="text-slate-600">Loading session...</p>
+      </div>
+    );
+  }
 
   if (!session) {
     return (
@@ -33,43 +59,25 @@ export default function HostSession() {
     );
   }
 
-  const quiz = getQuiz(session.quizId) || session.quizSnapshot;
-  const currentQ = quiz?.questions[session.currentQuestionIndex];
-
-  // Count answers for current question
-  const answerStats = useMemo(() => {
-    if (!currentQ) return { total: 0, counts: [0, 0, 0, 0] };
-    const counts = currentQ.choices.map(() => 0);
-    let total = 0;
-    session.participants.forEach((p) => {
-      const ans = p.answers.find((a) => a.questionId === currentQ.id);
-      if (ans) {
-        counts[ans.choiceIndex] = (counts[ans.choiceIndex] || 0) + 1;
-        total++;
-      }
-    });
-    return { total, counts };
-  }, [session, currentQ]);
-
-  const handleStart = () => {
+  const handleStart = async () => {
     if (session.participants.length === 0) {
       if (!confirm("No students have joined yet. Start anyway?")) return;
     }
-    startSession(session.code);
+    await startSession(session.code);
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (session.currentQuestionIndex >= session.totalQuestions - 1) {
-      endSession(session.code);
+      await endSession(session.code);
       navigate(`/teacher/results/${session.code}`);
     } else {
-      advanceQuestion(session.code);
+      await advanceQuestion(session.code);
     }
   };
 
-  const handleEnd = () => {
+  const handleEnd = async () => {
     if (confirm("End this session now?")) {
-      endSession(session.code);
+      await endSession(session.code);
       navigate(`/teacher/results/${session.code}`);
     }
   };

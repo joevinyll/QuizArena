@@ -5,7 +5,7 @@ import { useQuiz } from "../../context/QuizContext";
 export default function StudentLobby() {
   const { code } = useParams();
   const navigate = useNavigate();
-  const { getSession } = useQuiz();
+  const { getSession, sessionsLoading } = useQuiz();
   const session = getSession(code);
 
   // Poll for session status (since we're using local state, context updates will re-render)
@@ -24,6 +24,14 @@ export default function StudentLobby() {
       return null;
     }
   })();
+
+  if (sessionsLoading) {
+    return (
+      <div className="max-w-xl mx-auto text-center py-20 px-4">
+        <p className="text-slate-600">Loading session...</p>
+      </div>
+    );
+  }
 
   if (!session) {
     return (

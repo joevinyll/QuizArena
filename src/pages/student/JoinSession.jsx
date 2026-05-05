@@ -4,16 +4,17 @@ import { useQuiz } from "../../context/QuizContext";
 
 export default function JoinSession() {
   const navigate = useNavigate();
-  const { getSession, joinSession } = useQuiz();
+  const { getSession, loadSession, joinSession } = useQuiz();
 
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [team, setTeam] = useState("");
   const [showTeam, setShowTeam] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1); // 1 = code, 2 = name
 
-  const handleCodeSubmit = (e) => {
+  const handleCodeSubmit = async (e) => {
     e.preventDefault();
     setError("");
     const upperCode = code.trim().toUpperCase();
@@ -21,7 +22,17 @@ export default function JoinSession() {
       setError("Please enter a valid session code.");
       return;
     }
-    const session = getSession(upperCode);
+    let session = null;
+    try {
+      setLoading(true);
+      session = getSession(upperCode) || (await loadSession(upperCode));
+    } catch (err) {
+      setError(err.message || "Unable to check this session code.");
+      return;
+    } finally {
+      setLoading(false);
+    }
+
     if (!session) {
       setError("Session not found. Check your code and try again.");
       return;
@@ -35,7 +46,7 @@ export default function JoinSession() {
     setStep(2);
   };
 
-  const handleNameSubmit = (e) => {
+  const handleNameSubmit = async (e) => {
     e.preventDefault();
     setError("");
     if (!name.trim()) {
@@ -47,7 +58,17 @@ export default function JoinSession() {
       return;
     }
 
-    const result = joinSession(code, name.trim(), team.trim() || null);
+    let result = null;
+    try {
+      setLoading(true);
+      result = await joinSession(code, name.trim(), team.trim() || null);
+    } catch (err) {
+      setError(err.message || "Unable to join this session.");
+      return;
+    } finally {
+      setLoading(false);
+    }
+
     if (!result.ok) {
       setError(result.error);
       return;
@@ -63,7 +84,7 @@ export default function JoinSession() {
       }),
     );
 
-    const session = getSession(code);
+    const session = result.session;
     if (session.status === "lobby") {
       navigate(`/student/lobby/${code}`);
     } else {
@@ -124,9 +145,10 @@ export default function JoinSession() {
               </div>
               <button
                 type="submit"
+                disabled={loading}
                 className="btn-primary w-full !py-3 text-base"
               >
-                Continue
+                {loading ? "Checking..." : "Continue"}
                 <svg
                   className="w-5 h-5"
                   fill="none"
@@ -196,8 +218,12 @@ export default function JoinSession() {
                 >
                   Back
                 </button>
-                <button type="submit" className="btn-primary flex-[2]">
-                  Join Session
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn-primary flex-[2]"
+                >
+                  {loading ? "Joining..." : "Join Session"}
                 </button>
               </div>
             </form>
