@@ -70,7 +70,9 @@ export default function QuizPlay() {
       setAnswerMessage(
         timedOut
           ? "Time is up. The correct answer is shown so you can review it. Try to answer before the timer ends next time."
-          : "Your answer is locked in. Stay ready for the next question.",
+          : session.timerEnabled
+            ? "Your answer is locked in. Results will appear when the timer ends."
+            : "Your answer is locked in. Stay ready for the next question.",
       );
       setTimeLeft(null);
     } else {
@@ -97,10 +99,11 @@ export default function QuizPlay() {
     if (
       !session?.timerEnabled ||
       !session.questionStartedAt ||
-      answered ||
       session.status !== "running"
     ) {
-      setTimeLeft(null);
+      if (!session?.timerEnabled || session.status !== "running") {
+        setTimeLeft(null);
+      }
       return;
     }
 
@@ -108,13 +111,11 @@ export default function QuizPlay() {
       const nextTimeLeft = calculateSyncedTimeLeft();
       setTimeLeft(nextTimeLeft);
 
-      if (
-        nextTimeLeft <= 0 &&
-        !timeoutSubmissionRef.current &&
-        selectedIndex === null &&
-        currentQ &&
-        me
-      ) {
+      if (nextTimeLeft > 0) {
+        return;
+      }
+
+      if (selectedIndex === null && currentQ && me && !timeoutSubmissionRef.current) {
         timeoutSubmissionRef.current = true;
         try {
           const result = await submitAnswer(code, me.id, currentQ.id, -1);
@@ -127,6 +128,17 @@ export default function QuizPlay() {
         } finally {
           setTimeLeft(0);
         }
+        return;
+      }
+
+      if (selectedIndex !== null) {
+        setShowCorrectAnswer(true);
+        setAnswerMessage(
+          lastResult?.correct
+            ? "Time is up. Your answer was correct."
+            : "Time is up. Your answer was incorrect. Review the correct answer below.",
+        );
+        setTimeLeft(0);
       }
     };
 
@@ -138,11 +150,11 @@ export default function QuizPlay() {
     session?.questionStartedAt,
     session?.timerSeconds,
     session?.status,
-    answered,
     selectedIndex,
     currentQ?.id,
     me?.id,
     code,
+    lastResult?.correct,
     submitAnswer,
   ]);
 
@@ -198,9 +210,16 @@ export default function QuizPlay() {
     setSelectedIndex(idx);
     setAnswered(true);
     setShowCorrectAnswer(false);
-    setAnswerMessage("Answer submitted. Stay focused for the next question.");
+    setAnswerMessage(
+      session?.timerEnabled
+        ? "Answer submitted. Results will appear when the timer ends."
+        : "Answer submitted. Stay focused for the next question.",
+    );
     const result = await submitAnswer(code, me.id, currentQ.id, idx);
     setLastResult(result);
+    if (!session?.timerEnabled) {
+      setShowCorrectAnswer(true);
+    }
   };
 
   return (
