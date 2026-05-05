@@ -45,6 +45,11 @@ export default function StudentLobby() {
     );
   }
 
+  const quizAuthor =
+    session.quizSnapshot?.teacherName ||
+    session.quizSnapshot?.teacherEmail ||
+    "Unknown teacher";
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
       <div className="card p-8 text-center animate-slide-up">
@@ -55,6 +60,7 @@ export default function StudentLobby() {
         <p className="text-slate-600 mt-2">
           {session.quizTitle} · {session.quizSubject}
         </p>
+        <p className="text-sm text-slate-500 mt-1">Created by {quizAuthor}</p>
 
         <div className="mt-6 p-4 rounded-2xl bg-slate-50 border border-slate-100">
           <div className="text-xs text-slate-500 uppercase font-bold tracking-wider">

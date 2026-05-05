@@ -14,6 +14,7 @@ export default function TeacherDashboard() {
   const [firstName, setFirstName] = useState(teacherFirstName);
   const [profileMessage, setProfileMessage] = useState("");
   const [profileError, setProfileError] = useState("");
+  const [editingName, setEditingName] = useState(false);
 
   useEffect(() => {
     setFirstName(teacherFirstName);
@@ -63,6 +64,7 @@ export default function TeacherDashboard() {
     try {
       await updateTeacherProfile({ displayName: firstName.trim() });
       setProfileMessage("First name updated.");
+      setEditingName(false);
     } catch (err) {
       setProfileError(err.message || "Unable to update your profile.");
     }
@@ -152,17 +154,103 @@ export default function TeacherDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-        <div>
-          <span className="badge-brand mb-2">Teacher Dashboard</span>
-          <h1 className="text-3xl font-extrabold text-slate-900">
-            Your Quiz Library
-          </h1>
-          <p className="text-slate-600 mt-1">
-            Welcome Teacher {teacherFirstName}. Create, manage, and host quizzes
-            for your classroom.
-          </p>
+      <div className="mb-8">
+        <span className="badge-brand mb-2">Teacher Dashboard</span>
+        <div className="mt-3 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="min-w-0">
+            {editingName ? (
+              <form
+                onSubmit={handleProfileSave}
+                className="flex flex-col sm:flex-row sm:items-center gap-3"
+              >
+                <div className="text-2xl sm:text-3xl font-extrabold text-slate-900">
+                  Welcome
+                </div>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(event) =>
+                    setFirstName(event.target.value.slice(0, 40))
+                  }
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-slate-900 focus:border-brand-500 focus:outline-none"
+                  placeholder="Enter your first name"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="btn-secondary whitespace-nowrap"
+                  >
+                    {loading ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingName(false);
+                      setFirstName(teacherFirstName);
+                      setProfileError("");
+                      setProfileMessage("");
+                    }}
+                    className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-3xl font-extrabold text-slate-900">
+                  Welcome {teacherFirstName}
+                </h1>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingName(true);
+                    setProfileError("");
+                    setProfileMessage("");
+                  }}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:border-brand-300 hover:text-brand-600"
+                  title="Edit first name"
+                  aria-label="Edit first name"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"
+                    />
+                  </svg>
+                </button>
+              </div>
+            )}
+            {(profileError || profileMessage) && (
+              <div
+                className={`mt-3 inline-flex rounded-xl px-4 py-3 text-sm ${
+                  profileError
+                    ? "border border-red-200 bg-red-50 text-red-700"
+                    : "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                }`}
+              >
+                {profileError || profileMessage}
+              </div>
+            )}
+            <h2 className="text-3xl font-extrabold text-slate-900 mt-3">
+              Your Quiz Library
+            </h2>
+            <p className="text-slate-600 mt-1">
+              Create, manage, and host quizzes for your classroom.
+            </p>
+          </div>
         </div>
+      </div>
+
+      <div className="flex justify-end mb-8">
         <Link to="/teacher/create" className="btn-primary">
           <svg
             className="w-5 h-5"
@@ -179,49 +267,6 @@ export default function TeacherDashboard() {
           </svg>
           Create New Quiz
         </Link>
-      </div>
-
-      <div className="card p-5 sm:p-6 mb-8">
-        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">
-              Teacher Profile
-            </h2>
-            <p className="text-sm text-slate-600 mt-1">
-              Set the first name shown in your dashboard welcome message.
-            </p>
-          </div>
-          <form
-            onSubmit={handleProfileSave}
-            className="flex flex-col sm:flex-row gap-3 lg:min-w-[28rem]"
-          >
-            <input
-              type="text"
-              value={firstName}
-              onChange={(event) => setFirstName(event.target.value.slice(0, 40))}
-              className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-brand-500 focus:outline-none"
-              placeholder="Enter your first name"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-secondary whitespace-nowrap"
-            >
-              {loading ? "Saving..." : "Save Name"}
-            </button>
-          </form>
-        </div>
-        {(profileError || profileMessage) && (
-          <div
-            className={`mt-4 rounded-xl px-4 py-3 text-sm ${
-              profileError
-                ? "border border-red-200 bg-red-50 text-red-700"
-                : "border border-emerald-200 bg-emerald-50 text-emerald-700"
-            }`}
-          >
-            {profileError || profileMessage}
-          </div>
-        )}
       </div>
 
       {quizzesLoading ? (

@@ -188,6 +188,10 @@ export default function QuizPlay() {
 
   const myParticipant = session.participants.find((p) => p.id === me.id);
   const myScore = myParticipant?.score || 0;
+  const quizAuthor =
+    session.quizSnapshot?.teacherName ||
+    session.quizSnapshot?.teacherEmail ||
+    "Unknown teacher";
 
   const handleAnswer = async (idx) => {
     if (answered || !currentQ) return;
@@ -215,6 +219,9 @@ export default function QuizPlay() {
                 · {me.team}
               </span>
             )}
+          </div>
+          <div className="text-xs text-slate-500 mt-1">
+            Quiz by {quizAuthor}
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">

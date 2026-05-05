@@ -113,6 +113,8 @@ export function QuizProvider({ children }) {
   const addQuiz = useCallback(async (quiz, teacher) => {
     const teacherId = typeof teacher === "string" ? teacher : teacher?.uid;
     const teacherEmail = typeof teacher === "object" ? teacher?.email : null;
+    const teacherName =
+      typeof teacher === "object" ? teacher?.displayName?.trim() : null;
 
     if (!teacherId) {
       throw new Error("Please sign in as a teacher before saving a quiz.");
@@ -133,6 +135,7 @@ export function QuizProvider({ children }) {
       createdAt: createdAt.toISOString().slice(0, 10),
       createdAtMs: createdAt.getTime(),
       teacherId,
+      teacherName: teacherName || null,
       teacherEmail: teacherEmail || null,
       updatedAt: serverTimestamp(),
     };
@@ -168,6 +171,9 @@ export function QuizProvider({ children }) {
 
   const updateQuiz = useCallback(async (quizId, quiz, teacher) => {
     const teacherId = typeof teacher === "string" ? teacher : teacher?.uid;
+    const teacherName =
+      typeof teacher === "object" ? teacher?.displayName?.trim() : null;
+    const teacherEmail = typeof teacher === "object" ? teacher?.email : null;
 
     if (!teacherId) {
       throw new Error("Please sign in as a teacher before updating a quiz.");
@@ -195,6 +201,8 @@ export function QuizProvider({ children }) {
         explanation: question.explanation.trim(),
       })),
       teacherId,
+      teacherName: teacherName || existingQuiz.teacherName || null,
+      teacherEmail: teacherEmail || existingQuiz.teacherEmail || null,
       updatedAt: serverTimestamp(),
     };
 
@@ -204,6 +212,8 @@ export function QuizProvider({ children }) {
       description: updatedQuiz.description,
       questions: updatedQuiz.questions,
       teacherId,
+      teacherName: updatedQuiz.teacherName,
+      teacherEmail: updatedQuiz.teacherEmail,
       updatedAt: serverTimestamp(),
     });
 
@@ -248,6 +258,8 @@ export function QuizProvider({ children }) {
           title: quiz.title,
           subject: quiz.subject,
           description: quiz.description,
+          teacherName: quiz.teacherName || null,
+          teacherEmail: quiz.teacherEmail || null,
           questions: quiz.questions,
         },
         status: "lobby",
