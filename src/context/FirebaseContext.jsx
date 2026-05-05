@@ -1,13 +1,26 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth, authReady } from "../firebase.js";
 import {
+  GoogleAuthProvider,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 
 const FirebaseContext = createContext(null);
+
+function getAuthErrorMessage(err, fallbackMessage) {
+  switch (err?.code) {
+    case "auth/invalid-credential":
+    case "auth/invalid-login-credentials":
+      return "Invalid credentials.";
+    default:
+      return err?.message || fallbackMessage;
+  }
+}
 
 export function useFirebase() {
   const context = useContext(FirebaseContext);
@@ -21,6 +34,7 @@ export function FirebaseProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const googleProvider = new GoogleAuthProvider();
 
   useEffect(() => {
     let unsubscribe = () => {};
@@ -57,7 +71,7 @@ export function FirebaseProvider({ children }) {
       setUser(credentials.user);
       return credentials.user;
     } catch (err) {
-      setError(err.message || "Unable to sign in.");
+      setError(getAuthErrorMessage(err, "Unable to sign in."));
       throw err;
     } finally {
       setLoading(false);
@@ -77,7 +91,7 @@ export function FirebaseProvider({ children }) {
       setUser(credentials.user);
       return credentials.user;
     } catch (err) {
-      setError(err.message || "Unable to register.");
+      setError(getAuthErrorMessage(err, "Unable to register."));
       throw err;
     } finally {
       setLoading(false);
@@ -92,7 +106,40 @@ export function FirebaseProvider({ children }) {
       await signOut(auth);
       setUser(null);
     } catch (err) {
-      setError(err.message || "Unable to sign out.");
+      setError(getAuthErrorMessage(err, "Unable to sign out."));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginWithGoogle = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await authReady;
+      googleProvider.setCustomParameters({ prompt: "select_account" });
+      const credentials = await signInWithPopup(auth, googleProvider);
+      setUser(credentials.user);
+      return credentials.user;
+    } catch (err) {
+      setError(getAuthErrorMessage(err, "Unable to sign in with Google."));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetPassword = async (email) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await authReady;
+      await sendPasswordResetEmail(auth, email);
+    } catch (err) {
+      setError(
+        getAuthErrorMessage(err, "Unable to send password reset email."),
+      );
       throw err;
     } finally {
       setLoading(false);
@@ -101,7 +148,16 @@ export function FirebaseProvider({ children }) {
 
   return (
     <FirebaseContext.Provider
-      value={{ user, loading, error, login, register, logout }}
+      value={{
+        user,
+        loading,
+        error,
+        login,
+        loginWithGoogle,
+        register,
+        logout,
+        resetPassword,
+      }}
     >
       {children}
     </FirebaseContext.Provider>

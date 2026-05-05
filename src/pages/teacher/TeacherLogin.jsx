@@ -4,13 +4,15 @@ import { useFirebase } from "../../context/FirebaseContext.jsx";
 import { useRole } from "../../context/RoleContext.jsx";
 
 export default function TeacherLogin() {
-  const { user, login, loading, error } = useFirebase();
+  const { user, login, loginWithGoogle, resetPassword, loading, error } =
+    useFirebase();
   const { setUserRole } = useRole();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [formError, setFormError] = useState(null);
+  const [resetMessage, setResetMessage] = useState(null);
 
   const from = location.state?.from?.pathname || "/teacher";
 
@@ -24,6 +26,7 @@ export default function TeacherLogin() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setFormError(null);
+    setResetMessage(null);
 
     if (!email || !password) {
       setFormError("Please enter both email and password.");
@@ -36,6 +39,36 @@ export default function TeacherLogin() {
       navigate(from, { replace: true });
     } catch (err) {
       setFormError(err.message || "Unable to sign in.");
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setFormError(null);
+    setResetMessage(null);
+
+    if (!email) {
+      setFormError("Enter your email first, then try reset password.");
+      return;
+    }
+
+    try {
+      await resetPassword(email);
+      setResetMessage("Password reset email sent. Check your inbox.");
+    } catch (err) {
+      setFormError(err.message || "Unable to send password reset email.");
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setFormError(null);
+    setResetMessage(null);
+
+    try {
+      await loginWithGoogle();
+      setUserRole("teacher");
+      navigate(from, { replace: true });
+    } catch (err) {
+      setFormError(err.message || "Unable to sign in with Google.");
     }
   };
 
@@ -60,7 +93,6 @@ export default function TeacherLogin() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               className="mt-2 block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-brand-500 focus:outline-none"
-              placeholder="teacher@school.edu"
             />
           </label>
 
@@ -73,13 +105,29 @@ export default function TeacherLogin() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="mt-2 block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-brand-500 focus:outline-none"
-              placeholder="••••••••"
             />
           </label>
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={loading}
+              className="text-sm font-medium text-brand-600 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Forgot password?
+            </button>
+          </div>
 
           {(formError || error) && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {formError || error}
+            </div>
+          )}
+
+          {resetMessage && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              {resetMessage}
             </div>
           )}
 
@@ -89,6 +137,15 @@ export default function TeacherLogin() {
             className="btn-primary w-full"
           >
             {loading ? "Signing in..." : "Sign in"}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Sign in with Google
           </button>
         </form>
 
