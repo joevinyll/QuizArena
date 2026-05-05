@@ -40,9 +40,6 @@ export default function StudentLobby() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
       <div className="card p-8 text-center animate-slide-up">
-        <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-soft mb-4 animate-pulse">
-          <span className="text-3xl">⏳</span>
-        </div>
         <span className="badge-brand">You're in!</span>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-3">
           Waiting for the teacher to start…

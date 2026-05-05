@@ -4,9 +4,11 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid md:grid-cols-3 gap-6 text-sm">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">Q</span>
-            </div>
+            <img
+              src="/quizarena-logo-title.png"
+              alt=""
+              className="w-8 h-8 rounded-lg object-contain"
+            />
             <span className="font-bold text-slate-900">QuizArena</span>
           </div>
           <p className="text-slate-500 leading-relaxed">

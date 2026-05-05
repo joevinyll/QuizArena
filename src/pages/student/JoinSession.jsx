@@ -75,9 +75,6 @@ export default function JoinSession() {
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
         <div className="text-center mb-6 animate-fade-in">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-soft mb-4">
-            <span className="text-3xl">🎓</span>
-          </div>
           <h1 className="text-3xl font-extrabold text-slate-900">
             Join a Quiz
           </h1>

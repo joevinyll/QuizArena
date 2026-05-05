@@ -37,11 +37,11 @@ export default function Navbar() {
             to="/"
             className="flex items-center gap-2 group min-w-0 flex-shrink"
           >
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-soft group-hover:scale-105 transition flex-shrink-0">
-              <span className="text-white font-bold text-base sm:text-lg">
-                Q
-              </span>
-            </div>
+            <img
+              src="/quizarena-logo-title.png"
+              alt="QuizArena"
+              className="w-8 h-8 sm:w-9 sm:h-9 object-contain group-hover:scale-105 transition flex-shrink-0"
+            />
             <div className="min-w-0">
               <h1 className="text-base sm:text-lg font-extrabold text-slate-900 leading-tight truncate">
                 QuizArena
