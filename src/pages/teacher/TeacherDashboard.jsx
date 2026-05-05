@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { useQuiz } from "../../context/QuizContext";
 import { useFirebase } from "../../context/FirebaseContext.jsx";
 import { formatDate } from "../../utils/helpers";
@@ -7,9 +8,16 @@ import { getUserFirstName } from "../../utils/helpers";
 export default function TeacherDashboard() {
   const { quizzes, quizzesLoading, quizzesError, deleteQuiz, createSession } =
     useQuiz();
-  const { user } = useFirebase();
+  const { user, updateTeacherProfile, loading } = useFirebase();
   const navigate = useNavigate();
   const teacherFirstName = getUserFirstName(user);
+  const [firstName, setFirstName] = useState(teacherFirstName);
+  const [profileMessage, setProfileMessage] = useState("");
+  const [profileError, setProfileError] = useState("");
+
+  useEffect(() => {
+    setFirstName(teacherFirstName);
+  }, [teacherFirstName]);
 
   // Filter quizzes: if logged in, show only user's quizzes; if not, show all
   const displayedQuizzes = user
@@ -39,6 +47,24 @@ export default function TeacherDashboard() {
       await deleteQuiz(quiz.id);
     } catch (err) {
       alert(err.message || "Unable to delete quiz. Please try again.");
+    }
+  };
+
+  const handleProfileSave = async (event) => {
+    event.preventDefault();
+    setProfileMessage("");
+    setProfileError("");
+
+    if (!firstName.trim()) {
+      setProfileError("Please enter your first name.");
+      return;
+    }
+
+    try {
+      await updateTeacherProfile({ displayName: firstName.trim() });
+      setProfileMessage("First name updated.");
+    } catch (err) {
+      setProfileError(err.message || "Unable to update your profile.");
     }
   };
 
@@ -153,6 +179,49 @@ export default function TeacherDashboard() {
           </svg>
           Create New Quiz
         </Link>
+      </div>
+
+      <div className="card p-5 sm:p-6 mb-8">
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">
+              Teacher Profile
+            </h2>
+            <p className="text-sm text-slate-600 mt-1">
+              Set the first name shown in your dashboard welcome message.
+            </p>
+          </div>
+          <form
+            onSubmit={handleProfileSave}
+            className="flex flex-col sm:flex-row gap-3 lg:min-w-[28rem]"
+          >
+            <input
+              type="text"
+              value={firstName}
+              onChange={(event) => setFirstName(event.target.value.slice(0, 40))}
+              className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-brand-500 focus:outline-none"
+              placeholder="Enter your first name"
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-secondary whitespace-nowrap"
+            >
+              {loading ? "Saving..." : "Save Name"}
+            </button>
+          </form>
+        </div>
+        {(profileError || profileMessage) && (
+          <div
+            className={`mt-4 rounded-xl px-4 py-3 text-sm ${
+              profileError
+                ? "border border-red-200 bg-red-50 text-red-700"
+                : "border border-emerald-200 bg-emerald-50 text-emerald-700"
+            }`}
+          >
+            {profileError || profileMessage}
+          </div>
+        )}
       </div>
 
       {quizzesLoading ? (

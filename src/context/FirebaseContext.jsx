@@ -154,6 +154,28 @@ export function FirebaseProvider({ children }) {
     }
   };
 
+  const updateTeacherProfile = async (profile = {}) => {
+    if (!auth.currentUser) {
+      throw new Error("Please sign in before updating your profile.");
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      await authReady;
+      await updateProfile(auth.currentUser, {
+        displayName: profile.displayName?.trim() || "",
+      });
+      setUser({ ...auth.currentUser });
+      return auth.currentUser;
+    } catch (err) {
+      setError(getAuthErrorMessage(err, "Unable to update profile."));
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <FirebaseContext.Provider
       value={{
@@ -165,6 +187,7 @@ export function FirebaseProvider({ children }) {
         register,
         logout,
         resetPassword,
+        updateTeacherProfile,
       }}
     >
       {children}
