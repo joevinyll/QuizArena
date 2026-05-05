@@ -38,8 +38,10 @@ export default function ResultsDashboard() {
         const ans = p.answers.find((a) => a.questionId === q.id);
         if (ans) {
           answered++;
-          choiceCounts[ans.choiceIndex] =
-            (choiceCounts[ans.choiceIndex] || 0) + 1;
+          if (ans.choiceIndex >= 0) {
+            choiceCounts[ans.choiceIndex] =
+              (choiceCounts[ans.choiceIndex] || 0) + 1;
+          }
           if (ans.correct) correct++;
         }
       });
@@ -52,6 +54,30 @@ export default function ResultsDashboard() {
       .sort((a, b) => a.accuracy - b.accuracy)
       .slice(0, 3);
 
+    const teamStats = session?.teamMode
+      ? (session.teams || []).map((teamName) => {
+          const members = session.participants.filter(
+            (participant) => participant.team === teamName,
+          );
+          const points = members.reduce(
+            (sum, participant) => sum + (participant.score || 0),
+            0,
+          );
+          const correctAnswers = members.reduce(
+            (sum, participant) =>
+              sum +
+              participant.answers.filter((answer) => answer.correct).length,
+            0,
+          );
+          return {
+            name: teamName,
+            members: members.length,
+            points,
+            correctAnswers,
+          };
+        }).sort((a, b) => b.points - a.points)
+      : [];
+
     return {
       totalParticipants,
       totalQuestions,
@@ -62,6 +88,7 @@ export default function ResultsDashboard() {
       classAccuracy,
       questionStats,
       hardest,
+      teamStats,
     };
   }, [session, quiz]);
 
@@ -219,6 +246,45 @@ export default function ResultsDashboard() {
           )}
         </div>
       </div>
+
+      {session.teamMode && (
+        <div className="card p-6 mt-6">
+          <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+            🤝 Group Standings
+          </h3>
+          {stats.teamStats.length === 0 ? (
+            <p className="text-sm text-slate-500">No group data yet.</p>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-3">
+              {stats.teamStats.map((team, index) => (
+                <div
+                  key={team.name}
+                  className="p-4 rounded-xl bg-slate-50 border border-slate-100"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                        Group #{index + 1}
+                      </p>
+                      <h4 className="font-bold text-slate-900">{team.name}</h4>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xl font-extrabold text-brand-700">
+                        {team.points}
+                      </div>
+                      <div className="text-xs text-slate-500">points</div>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
+                    <span>{team.members} member{team.members !== 1 && "s"}</span>
+                    <span>{team.correctAnswers} correct answers</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Per-question breakdown */}
       <div className="card p-6 mt-6">

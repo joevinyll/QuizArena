@@ -8,6 +8,7 @@ export default function TeacherRegister() {
   const { setUserRole } = useRole();
   const navigate = useNavigate();
   const location = useLocation();
+  const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -26,7 +27,7 @@ export default function TeacherRegister() {
     event.preventDefault();
     setFormError(null);
 
-    if (!email || !password || !confirmPassword) {
+    if (!firstName.trim() || !email || !password || !confirmPassword) {
       setFormError("Please fill in all fields.");
       return;
     }
@@ -42,7 +43,7 @@ export default function TeacherRegister() {
     }
 
     try {
-      await register(email, password);
+      await register(email, password, { displayName: firstName.trim() });
       setUserRole("teacher");
       navigate(from, { replace: true });
     } catch (err) {
@@ -64,6 +65,19 @@ export default function TeacherRegister() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <label className="block">
+            <span className="text-sm font-semibold text-slate-700">
+              First Name
+            </span>
+            <input
+              type="text"
+              value={firstName}
+              onChange={(event) => setFirstName(event.target.value.slice(0, 40))}
+              className="mt-2 block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 focus:border-brand-500 focus:outline-none"
+              placeholder="Maria"
+            />
+          </label>
+
           <label className="block">
             <span className="text-sm font-semibold text-slate-700">Email</span>
             <input

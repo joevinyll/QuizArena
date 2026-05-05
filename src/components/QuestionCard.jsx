@@ -4,24 +4,29 @@ export default function QuestionCard({
   totalQuestions,
   onAnswer,
   selectedIndex = null,
-  revealed = false,
+  answered = false,
+  showCorrectAnswer = false,
   correctIndex = null,
   disabled = false,
 }) {
+  const statusLabel = showCorrectAnswer
+    ? selectedIndex === null
+      ? { text: "Time's Up", className: "badge-danger" }
+      : selectedIndex === correctIndex
+        ? { text: "✓ Correct", className: "badge-success" }
+        : { text: "✗ Incorrect", className: "badge-danger" }
+    : answered
+      ? { text: "Answer Locked", className: "badge-brand" }
+      : null;
+
   return (
     <div className="card p-5 sm:p-8 animate-slide-up">
       <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
         <span className="badge-brand">
           Question {questionNumber} of {totalQuestions}
         </span>
-        {revealed && selectedIndex !== null && (
-          <span
-            className={
-              selectedIndex === correctIndex ? "badge-success" : "badge-danger"
-            }
-          >
-            {selectedIndex === correctIndex ? "✓ Correct" : "✗ Incorrect"}
-          </span>
+        {statusLabel && (
+          <span className={statusLabel.className}>{statusLabel.text}</span>
         )}
       </div>
 
@@ -32,12 +37,13 @@ export default function QuestionCard({
       <div className="grid gap-2.5 sm:gap-3">
         {question.choices.map((choice, idx) => {
           const isSelected = selectedIndex === idx;
-          const isCorrect = revealed && idx === correctIndex;
-          const isWrongPick = revealed && isSelected && idx !== correctIndex;
+          const isCorrect = showCorrectAnswer && idx === correctIndex;
+          const isWrongPick =
+            showCorrectAnswer && isSelected && idx !== correctIndex;
 
           let style =
             "border-slate-200 bg-white hover:border-brand-400 hover:bg-brand-50";
-          if (isSelected && !revealed)
+          if (isSelected && !showCorrectAnswer)
             style = "border-brand-500 bg-brand-50 ring-4 ring-brand-100";
           if (isCorrect)
             style = "border-success-500 bg-emerald-50 ring-4 ring-emerald-100";
@@ -102,7 +108,7 @@ export default function QuestionCard({
         })}
       </div>
 
-      {revealed && question.explanation && (
+      {showCorrectAnswer && question.explanation && (
         <div className="mt-6 p-4 rounded-xl bg-brand-50 border border-brand-100 animate-fade-in">
           <p className="text-sm font-bold text-brand-700 mb-1 flex items-center gap-1">
             <svg

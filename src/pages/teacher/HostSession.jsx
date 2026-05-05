@@ -2,7 +2,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuiz } from "../../context/QuizContext";
 import SessionCodeDisplay from "../../components/SessionCodeDisplay";
 import ProgressBar from "../../components/ProgressBar";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 export default function HostSession() {
   const { code } = useParams();
@@ -20,6 +20,7 @@ export default function HostSession() {
   const session = getSession(code);
   const quiz = session ? getQuiz(session.quizId) || session.quizSnapshot : null;
   const currentQ = quiz?.questions[session?.currentQuestionIndex ?? 0];
+  const [teamName, setTeamName] = useState("");
 
   // Count answers for current question
   const answerStats = useMemo(() => {
@@ -29,12 +30,40 @@ export default function HostSession() {
     session.participants.forEach((p) => {
       const ans = p.answers.find((a) => a.questionId === currentQ.id);
       if (ans) {
+        if (ans.choiceIndex >= 0) {
         counts[ans.choiceIndex] = (counts[ans.choiceIndex] || 0) + 1;
+        }
         total++;
       }
     });
     return { total, counts };
   }, [session, currentQ]);
+
+  const teamStandings = useMemo(() => {
+    if (!session?.teamMode) return [];
+
+    const teamMap = new Map();
+
+    (session.teams || []).forEach((team) => {
+      teamMap.set(team, { name: team, points: 0, members: 0, correct: 0 });
+    });
+
+    session.participants.forEach((participant) => {
+      if (!participant.team) return;
+      const existing = teamMap.get(participant.team) || {
+        name: participant.team,
+        points: 0,
+        members: 0,
+        correct: 0,
+      };
+      existing.points += participant.score || 0;
+      existing.members += 1;
+      existing.correct += participant.answers.filter((answer) => answer.correct).length;
+      teamMap.set(participant.team, existing);
+    });
+
+    return [...teamMap.values()].sort((a, b) => b.points - a.points);
+  }, [session]);
 
   if (sessionsLoading) {
     return (
@@ -82,6 +111,36 @@ export default function HostSession() {
     }
   };
 
+  const handleAddTeam = async (event) => {
+    event.preventDefault();
+    const nextTeam = teamName.trim();
+    if (!nextTeam) return;
+
+    if ((session.teams || []).includes(nextTeam)) {
+      alert("That group already exists.");
+      return;
+    }
+
+    await updateSession(session.code, {
+      teams: [...(session.teams || []), nextTeam],
+    });
+    setTeamName("");
+  };
+
+  const handleRemoveTeam = async (teamToRemove) => {
+    const hasMembers = session.participants.some(
+      (participant) => participant.team === teamToRemove,
+    );
+    if (hasMembers) {
+      alert("Students are already assigned to this group.");
+      return;
+    }
+
+    await updateSession(session.code, {
+      teams: (session.teams || []).filter((team) => team !== teamToRemove),
+    });
+  };
+
   // === Lobby view ===
   if (session.status === "lobby") {
     return (
@@ -115,6 +174,47 @@ export default function HostSession() {
                   className="w-5 h-5 accent-brand-600"
                 />
               </label>
+              {session.teamMode && (
+                <div className="p-3 rounded-xl bg-slate-50 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-semibold text-slate-700">
+                      Groups
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      Teacher-managed
+                    </span>
+                  </div>
+                  <form onSubmit={handleAddTeam} className="flex gap-2">
+                    <input
+                      value={teamName}
+                      onChange={(event) => setTeamName(event.target.value.slice(0, 30))}
+                      placeholder="Add group name"
+                      className="flex-1 px-3 py-2 rounded-lg border-2 border-slate-200 text-sm"
+                    />
+                    <button type="submit" className="btn-secondary !py-2 !px-4">
+                      Add
+                    </button>
+                  </form>
+                  {(session.teams || []).length === 0 ? (
+                    <p className="text-xs text-amber-700">
+                      Add at least one group before students join with team mode.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {(session.teams || []).map((team) => (
+                        <button
+                          key={team}
+                          type="button"
+                          onClick={() => handleRemoveTeam(team)}
+                          className="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-sm text-slate-700 hover:border-rose-300 hover:text-rose-600"
+                        >
+                          {team} ×
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <label className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
                 <span className="text-sm font-semibold text-slate-700">
                   ⏱️ Question Timer
@@ -225,6 +325,7 @@ export default function HostSession() {
                   className="badge-brand !text-sm !px-3 !py-1.5 animate-pop"
                 >
                   {p.name}
+                  {p.team ? ` · ${p.team}` : ""}
                 </span>
               ))}
             </div>
@@ -344,6 +445,33 @@ export default function HostSession() {
           <div className="card p-5 sm:p-6">
             <h3 className="font-bold text-slate-900 mb-3">Live Leaderboard</h3>
             <div className="space-y-2">
+              {session.teamMode && teamStandings.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                    Group Standings
+                  </p>
+                  <div className="space-y-2">
+                    {teamStandings.map((team, index) => (
+                      <div
+                        key={team.name}
+                        className="flex items-center justify-between p-2.5 rounded-lg bg-brand-50 border border-brand-100"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-brand-600 text-white">
+                            {index + 1}
+                          </span>
+                          <span className="font-medium text-sm text-slate-800 truncate">
+                            {team.name}
+                          </span>
+                        </div>
+                        <span className="font-bold text-brand-700 text-sm">
+                          {team.points} pts
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {[...session.participants]
                 .sort((a, b) => b.score - a.score)
                 .slice(0, 10)
@@ -368,6 +496,7 @@ export default function HostSession() {
                       </span>
                       <span className="font-medium text-sm text-slate-800 truncate">
                         {p.name}
+                        {p.team ? ` · ${p.team}` : ""}
                       </span>
                     </div>
                     <span className="font-bold text-brand-700 text-sm">

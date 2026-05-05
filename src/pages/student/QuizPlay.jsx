@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuiz } from "../../context/QuizContext";
 import QuestionCard from "../../components/QuestionCard";
@@ -23,9 +23,12 @@ export default function QuizPlay() {
   }, [code]);
 
   const [selectedIndex, setSelectedIndex] = useState(null);
-  const [revealed, setRevealed] = useState(false);
+  const [answered, setAnswered] = useState(false);
+  const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
   const [lastResult, setLastResult] = useState(null);
   const [timeLeft, setTimeLeft] = useState(null);
+  const [answerMessage, setAnswerMessage] = useState("");
+  const timeoutSubmissionRef = useRef(false);
 
   const currentQ = quiz?.questions[session?.currentQuestionIndex ?? 0] || null;
 
@@ -54,20 +57,29 @@ export default function QuizPlay() {
     );
 
     if (existingAnswer) {
-      // Student already answered this question — restore revealed state
-      setSelectedIndex(existingAnswer.choiceIndex);
-      setRevealed(true);
+      const timedOut =
+        existingAnswer.timedOut || existingAnswer.choiceIndex == null || existingAnswer.choiceIndex < 0;
+      setSelectedIndex(existingAnswer.choiceIndex >= 0 ? existingAnswer.choiceIndex : null);
+      setAnswered(true);
+      setShowCorrectAnswer(timedOut);
       setLastResult({
         correct: existingAnswer.correct,
         correctIndex: currentQ.correctIndex,
         explanation: currentQ.explanation,
       });
-      setTimeLeft(null); // stop timer since already answered
+      setAnswerMessage(
+        timedOut
+          ? "Time is up. The correct answer is shown so you can review it. Try to answer before the timer ends next time."
+          : "Your answer is locked in. Stay ready for the next question.",
+      );
+      setTimeLeft(null);
     } else {
-      // Fresh question — reset state and sync timer from shared session time.
+      timeoutSubmissionRef.current = false;
       setSelectedIndex(null);
-      setRevealed(false);
+      setAnswered(false);
+      setShowCorrectAnswer(false);
       setLastResult(null);
+      setAnswerMessage("");
       setTimeLeft(calculateSyncedTimeLeft());
     }
   }, [
@@ -81,12 +93,11 @@ export default function QuizPlay() {
     // intentionally not depending on participants array (would reset on every poll)
   ]);
 
-  // Timer countdown synced to the teacher's shared questionStartedAt timestamp.
   useEffect(() => {
     if (
       !session?.timerEnabled ||
       !session.questionStartedAt ||
-      revealed ||
+      answered ||
       session.status !== "running"
     ) {
       setTimeLeft(null);
@@ -97,12 +108,25 @@ export default function QuizPlay() {
       const nextTimeLeft = calculateSyncedTimeLeft();
       setTimeLeft(nextTimeLeft);
 
-      if (nextTimeLeft <= 0) {
-        if (selectedIndex === null && currentQ && me) {
+      if (
+        nextTimeLeft <= 0 &&
+        !timeoutSubmissionRef.current &&
+        selectedIndex === null &&
+        currentQ &&
+        me
+      ) {
+        timeoutSubmissionRef.current = true;
+        try {
           const result = await submitAnswer(code, me.id, currentQ.id, -1);
           setLastResult(result);
+          setAnswered(true);
+          setShowCorrectAnswer(true);
+          setAnswerMessage(
+            "Time is up. The correct answer is shown so you can review it. Try to answer before the timer ends next time.",
+          );
+        } finally {
+          setTimeLeft(0);
         }
-        setRevealed(true);
       }
     };
 
@@ -114,7 +138,7 @@ export default function QuizPlay() {
     session?.questionStartedAt,
     session?.timerSeconds,
     session?.status,
-    revealed,
+    answered,
     selectedIndex,
     currentQ?.id,
     me?.id,
@@ -166,11 +190,13 @@ export default function QuizPlay() {
   const myScore = myParticipant?.score || 0;
 
   const handleAnswer = async (idx) => {
-    if (revealed || !currentQ) return;
+    if (answered || !currentQ) return;
     setSelectedIndex(idx);
+    setAnswered(true);
+    setShowCorrectAnswer(false);
+    setAnswerMessage("Answer submitted. Stay focused for the next question.");
     const result = await submitAnswer(code, me.id, currentQ.id, idx);
     setLastResult(result);
-    setRevealed(true);
   };
 
   return (
@@ -217,9 +243,10 @@ export default function QuizPlay() {
           questionNumber={session.currentQuestionIndex + 1}
           totalQuestions={session.totalQuestions}
           selectedIndex={selectedIndex}
-          revealed={revealed}
-          correctIndex={lastResult?.correctIndex ?? null}
-          disabled={revealed}
+          answered={answered}
+          showCorrectAnswer={showCorrectAnswer}
+          correctIndex={showCorrectAnswer ? (lastResult?.correctIndex ?? null) : null}
+          disabled={answered}
           onAnswer={handleAnswer}
         />
       ) : (
@@ -228,19 +255,11 @@ export default function QuizPlay() {
         </div>
       )}
 
-      {revealed && (
+      {answered && (
         <div className="mt-6 card p-5 animate-fade-in text-center">
           <p className="text-sm text-slate-600">
-            {lastResult?.correct ? (
-              <>
-                Great job! ✨ Wait for the teacher to move to the next question.
-              </>
-            ) : (
-              <>
-                Don't worry — you can learn from this. Wait for the teacher to
-                continue.
-              </>
-            )}
+            {answerMessage ||
+              "Your response has been recorded. Wait for the teacher to continue."}
           </p>
         </div>
       )}

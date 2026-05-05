@@ -65,7 +65,7 @@ export default function StudentLobby() {
           </div>
           {me?.team && (
             <div className="text-sm text-brand-700 font-semibold mt-0.5">
-              🤝 {me.team}
+              🤝 Group {me.team}
             </div>
           )}
         </div>
@@ -91,6 +91,7 @@ export default function StudentLobby() {
           {session.participants.map((p) => (
             <span key={p.id} className="badge-slate">
               {p.name}
+              {p.team ? ` · ${p.team}` : ""}
             </span>
           ))}
         </div>

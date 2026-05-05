@@ -25,6 +25,14 @@ import { generateSessionCode, generateId } from "../utils/helpers";
 
 const QuizContext = createContext(null);
 
+function sanitizeTeams(teams = []) {
+  return [...new Set(
+    teams
+      .map((team) => team?.trim())
+      .filter(Boolean),
+  )];
+}
+
 export function QuizProvider({ children }) {
   const { user } = useFirebase();
   const [quizzes, setQuizzes] = useState(initialQuizzes);
@@ -250,7 +258,7 @@ export function QuizProvider({ children }) {
         currentQuestionIndex: 0,
         questionStartedAt: null,
         participants: [],
-        teams: [],
+        teams: sanitizeTeams(options.teams || []),
         scores: {}, // { participantId: { name, score, totalCorrect } }
         startedAt: null,
         finishedAt: null,
@@ -319,10 +327,27 @@ export function QuizProvider({ children }) {
         error: "That name is already taken in this session.",
       };
 
+    const normalizedTeam = team?.trim() || null;
+    if (session.teamMode) {
+      const availableTeams = sanitizeTeams(session.teams);
+      if (availableTeams.length === 0) {
+        return {
+          ok: false,
+          error: "Your teacher has not added groups yet.",
+        };
+      }
+      if (!normalizedTeam || !availableTeams.includes(normalizedTeam)) {
+        return {
+          ok: false,
+          error: "Please choose a valid group selected by your teacher.",
+        };
+      }
+    }
+
     const participant = {
       id: generateId("p"),
       name,
-      team: team || null,
+      team: session.teamMode ? normalizedTeam : null,
       score: 0,
       answers: [],
       joinedAt: new Date().toISOString(),
@@ -370,6 +395,7 @@ export function QuizProvider({ children }) {
               choiceIndex,
               correct,
               points: correct ? pointsPerCorrect : 0,
+              timedOut: choiceIndex < 0,
               timestamp: Date.now(),
             },
           ],

@@ -2,12 +2,14 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuiz } from "../../context/QuizContext";
 import { useFirebase } from "../../context/FirebaseContext.jsx";
 import { formatDate } from "../../utils/helpers";
+import { getUserFirstName } from "../../utils/helpers";
 
 export default function TeacherDashboard() {
   const { quizzes, quizzesLoading, quizzesError, deleteQuiz, createSession } =
     useQuiz();
   const { user } = useFirebase();
   const navigate = useNavigate();
+  const teacherFirstName = getUserFirstName(user);
 
   // Filter quizzes: if logged in, show only user's quizzes; if not, show all
   const displayedQuizzes = user
@@ -131,7 +133,8 @@ export default function TeacherDashboard() {
             Your Quiz Library
           </h1>
           <p className="text-slate-600 mt-1">
-            Create, manage, and host quizzes for your classroom.
+            Welcome Teacher {teacherFirstName}. Create, manage, and host quizzes
+            for your classroom.
           </p>
         </div>
         <Link to="/teacher/create" className="btn-primary">

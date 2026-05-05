@@ -10,6 +10,7 @@ export default function JoinSession() {
   const [name, setName] = useState("");
   const [team, setTeam] = useState("");
   const [showTeam, setShowTeam] = useState(false);
+  const [availableTeams, setAvailableTeams] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1); // 1 = code, 2 = name
@@ -43,6 +44,8 @@ export default function JoinSession() {
     }
     setCode(upperCode);
     setShowTeam(session.teamMode);
+    setAvailableTeams(session.teams || []);
+    setTeam("");
     setStep(2);
   };
 
@@ -54,7 +57,7 @@ export default function JoinSession() {
       return;
     }
     if (showTeam && !team.trim()) {
-      setError("Please enter your team name.");
+      setError("Please choose your group.");
       return;
     }
 
@@ -192,17 +195,22 @@ export default function JoinSession() {
               {showTeam && (
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">
-                    Team Name 🤝
+                    Group 🤝
                   </label>
-                  <input
+                  <select
                     value={team}
-                    onChange={(e) => setTeam(e.target.value.slice(0, 20))}
-                    placeholder="e.g., Team Alpha"
+                    onChange={(e) => setTeam(e.target.value)}
                     className="input"
-                    maxLength={20}
-                  />
+                  >
+                    <option value="">Select your group</option>
+                    {availableTeams.map((teamName) => (
+                      <option key={teamName} value={teamName}>
+                        {teamName}
+                      </option>
+                    ))}
+                  </select>
                   <p className="text-xs text-slate-500 mt-1">
-                    This teacher enabled team mode.
+                    Your teacher assigned the available groups for this session.
                   </p>
                 </div>
               )}

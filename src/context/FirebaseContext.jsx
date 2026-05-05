@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { auth, authReady } from "../firebase.js";
 import {
   GoogleAuthProvider,
+  updateProfile,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -17,6 +18,8 @@ function getAuthErrorMessage(err, fallbackMessage) {
     case "auth/invalid-credential":
     case "auth/invalid-login-credentials":
       return "Invalid credentials.";
+    case "auth/unauthorized-domain":
+      return "This domain is not authorized for Google sign-in.";
     default:
       return err?.message || fallbackMessage;
   }
@@ -78,7 +81,7 @@ export function FirebaseProvider({ children }) {
     }
   };
 
-  const register = async (email, password) => {
+  const register = async (email, password, profile = {}) => {
     setLoading(true);
     setError(null);
     try {
@@ -88,6 +91,11 @@ export function FirebaseProvider({ children }) {
         email,
         password,
       );
+      if (profile.displayName?.trim()) {
+        await updateProfile(credentials.user, {
+          displayName: profile.displayName.trim(),
+        });
+      }
       setUser(credentials.user);
       return credentials.user;
     } catch (err) {

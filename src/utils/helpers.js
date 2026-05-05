@@ -38,3 +38,19 @@ export function difficultyLabel(accuracy) {
 
 // Clamp
 export const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+
+export function getUserFirstName(user) {
+  const displayName = user?.displayName?.trim();
+  if (displayName) {
+    return displayName.split(/\s+/)[0];
+  }
+
+  const emailName = user?.email?.split("@")[0]?.trim();
+  if (!emailName) return "Teacher";
+
+  return emailName
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
