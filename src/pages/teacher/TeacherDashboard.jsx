@@ -12,6 +12,7 @@ export default function TeacherDashboard() {
     quizzesError,
     deleteQuiz,
     createSession,
+    endSession,
     sessions,
   } = useQuiz();
   const { user, updateTeacherProfile, loading } = useFirebase();
@@ -68,6 +69,21 @@ export default function TeacherDashboard() {
       await deleteQuiz(quiz.id);
     } catch (err) {
       alert(err.message || "Unable to delete quiz. Please try again.");
+    }
+  };
+
+  const handleCancelActiveSession = async () => {
+    if (!activeSession) return;
+
+    const shouldCancel = confirm(
+      `Cancel the active session ${activeSession.code}? Students will no longer be able to continue using this code.`,
+    );
+    if (!shouldCancel) return;
+
+    try {
+      await endSession(activeSession.code);
+    } catch (err) {
+      alert(err.message || "Unable to cancel the active session right now.");
     }
   };
 
@@ -280,6 +296,13 @@ export default function TeacherDashboard() {
                   className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-brand-700 border border-brand-200 hover:bg-brand-100 transition"
                 >
                   Return to Session
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelActiveSession}
+                  className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-rose-700 border border-rose-200 hover:bg-rose-50 transition"
+                >
+                  Cancel Session
                 </button>
               </div>
             )}
