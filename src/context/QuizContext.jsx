@@ -238,6 +238,20 @@ export function QuizProvider({ children }) {
     async (quizId, options = {}) => {
       const quiz = quizzes.find((q) => q.id === quizId);
       if (!quiz) return null;
+      if (!user?.uid) {
+        throw new Error("Please sign in before hosting a live session.");
+      }
+
+      const existingActiveSession = Object.values(sessions).find(
+        (session) =>
+          session.quizId === quizId &&
+          session.status !== "finished" &&
+          session.hostTeacherId === user.uid,
+      );
+
+      if (existingActiveSession) {
+        return existingActiveSession;
+      }
 
       let code;
       let exists = false;
@@ -271,6 +285,8 @@ export function QuizProvider({ children }) {
         questionStartedAt: null,
         participants: [],
         teams: sanitizeTeams(options.teams || []),
+        hostTeacherId: user.uid,
+        hostTeacherEmail: user.email || null,
         scores: {}, // { participantId: { name, score, totalCorrect } }
         startedAt: null,
         finishedAt: null,
@@ -281,7 +297,7 @@ export function QuizProvider({ children }) {
       setSessions((prev) => ({ ...prev, [code]: newSession }));
       return newSession;
     },
-    [quizzes, sessions],
+    [quizzes, sessions, user],
   );
 
   const getSession = useCallback(

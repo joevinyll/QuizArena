@@ -1,8 +1,14 @@
-import { useParams, useNavigate, Link } from "react-router-dom";
+import {
+  useParams,
+  useNavigate,
+  Link,
+  useBlocker,
+  useBeforeUnload,
+} from "react-router-dom";
 import { useQuiz } from "../../context/QuizContext";
 import SessionCodeDisplay from "../../components/SessionCodeDisplay";
 import ProgressBar from "../../components/ProgressBar";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export default function HostSession() {
   const { code } = useParams();
@@ -24,6 +30,12 @@ export default function HostSession() {
   const [timeLeft, setTimeLeft] = useState(null);
   const [timerSecondsInput, setTimerSecondsInput] = useState("");
   const [pointsInput, setPointsInput] = useState("");
+  const allowNavigationRef = useRef(false);
+  const shouldBlockNavigation =
+    Boolean(session) &&
+    !allowNavigationRef.current &&
+    (session.status === "lobby" || session.status === "running");
+  const navigationBlocker = useBlocker(shouldBlockNavigation);
 
   // Count answers for current question
   const answerStats = useMemo(() => {
@@ -34,7 +46,7 @@ export default function HostSession() {
       const ans = p.answers.find((a) => a.questionId === currentQ.id);
       if (ans) {
         if (ans.choiceIndex >= 0) {
-        counts[ans.choiceIndex] = (counts[ans.choiceIndex] || 0) + 1;
+          counts[ans.choiceIndex] = (counts[ans.choiceIndex] || 0) + 1;
         }
         total++;
       }
@@ -74,6 +86,43 @@ export default function HostSession() {
     setTimerSecondsInput(String(session.timerSeconds ?? 20));
     setPointsInput(String(session.pointsPerCorrect ?? 1));
   }, [session?.code, session?.timerSeconds, session?.pointsPerCorrect]);
+
+  useBeforeUnload(
+    useMemo(
+      () => (event) => {
+        if (!shouldBlockNavigation) return;
+        event.preventDefault();
+        event.returnValue = "";
+      },
+      [shouldBlockNavigation],
+    ),
+    { capture: true },
+  );
+
+  useEffect(() => {
+    if (navigationBlocker.state !== "blocked" || !session) return;
+
+    const confirmAndEnd = async () => {
+      const shouldEndSession = window.confirm("Are you sure to end session?");
+
+      if (!shouldEndSession) {
+        navigationBlocker.reset();
+        return;
+      }
+
+      allowNavigationRef.current = true;
+      try {
+        await endSession(session.code);
+        navigationBlocker.proceed();
+      } catch {
+        allowNavigationRef.current = false;
+        navigationBlocker.reset();
+        alert("Unable to end the session right now. Please try again.");
+      }
+    };
+
+    confirmAndEnd();
+  }, [navigationBlocker, endSession, session]);
 
   const teamStandings = useMemo(() => {
     if (!session?.teamMode) return [];
@@ -133,6 +182,7 @@ export default function HostSession() {
 
   const handleNext = async () => {
     if (session.currentQuestionIndex >= session.totalQuestions - 1) {
+      allowNavigationRef.current = true;
       await endSession(session.code);
       navigate(`/teacher/results/${session.code}`);
     } else {
@@ -142,6 +192,7 @@ export default function HostSession() {
 
   const handleEnd = async () => {
     if (confirm("End this session now?")) {
+      allowNavigationRef.current = true;
       await endSession(session.code);
       navigate(`/teacher/results/${session.code}`);
     }
@@ -311,23 +362,23 @@ export default function HostSession() {
                 <span className="text-sm font-semibold text-slate-700">
                   Points per correct answer
                 </span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    inputMode="numeric"
-                    value={pointsInput}
-                    onChange={(e) => setPointsInput(e.target.value)}
-                    onBlur={commitPointsPerCorrect}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        commitPointsPerCorrect();
-                      }
-                    }}
-                    className="w-20 px-2 py-1 rounded-lg border-2 border-slate-200 text-center font-semibold"
-                  />
-                </div>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  inputMode="numeric"
+                  value={pointsInput}
+                  onChange={(e) => setPointsInput(e.target.value)}
+                  onBlur={commitPointsPerCorrect}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      commitPointsPerCorrect();
+                    }
+                  }}
+                  className="w-20 px-2 py-1 rounded-lg border-2 border-slate-200 text-center font-semibold"
+                />
+              </div>
             </div>
 
             <button
