@@ -22,6 +22,8 @@ export default function HostSession() {
   const currentQ = quiz?.questions[session?.currentQuestionIndex ?? 0];
   const [teamName, setTeamName] = useState("");
   const [timeLeft, setTimeLeft] = useState(null);
+  const [timerSecondsInput, setTimerSecondsInput] = useState("");
+  const [pointsInput, setPointsInput] = useState("");
 
   // Count answers for current question
   const answerStats = useMemo(() => {
@@ -66,6 +68,12 @@ export default function HostSession() {
     session?.questionStartedAt,
     session?.timerSeconds,
   ]);
+
+  useEffect(() => {
+    if (!session) return;
+    setTimerSecondsInput(String(session.timerSeconds ?? 20));
+    setPointsInput(String(session.pointsPerCorrect ?? 1));
+  }, [session?.code, session?.timerSeconds, session?.pointsPerCorrect]);
 
   const teamStandings = useMemo(() => {
     if (!session?.teamMode) return [];
@@ -169,6 +177,24 @@ export default function HostSession() {
     });
   };
 
+  const commitTimerSeconds = async () => {
+    const parsed = parseInt(timerSecondsInput, 10);
+    const nextValue = Math.max(5, Number.isNaN(parsed) ? 5 : parsed);
+    setTimerSecondsInput(String(nextValue));
+    if (nextValue !== session.timerSeconds) {
+      await updateSession(session.code, { timerSeconds: nextValue });
+    }
+  };
+
+  const commitPointsPerCorrect = async () => {
+    const parsed = parseInt(pointsInput, 10);
+    const nextValue = Math.max(0, Number.isNaN(parsed) ? 0 : parsed);
+    setPointsInput(String(nextValue));
+    if (nextValue !== (session.pointsPerCorrect ?? 1)) {
+      await updateSession(session.code, { pointsPerCorrect: nextValue });
+    }
+  };
+
   // === Lobby view ===
   if (session.status === "lobby") {
     return (
@@ -267,15 +293,16 @@ export default function HostSession() {
                     type="number"
                     min="5"
                     max="120"
-                    value={session.timerSeconds}
-                    onChange={(e) =>
-                      updateSession(session.code, {
-                        timerSeconds: Math.max(
-                          5,
-                          parseInt(e.target.value, 10) || 5,
-                        ),
-                      })
-                    }
+                    inputMode="numeric"
+                    value={timerSecondsInput}
+                    onChange={(e) => setTimerSecondsInput(e.target.value)}
+                    onBlur={commitTimerSeconds}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        commitTimerSeconds();
+                      }
+                    }}
                     className="w-20 px-2 py-1 rounded-lg border-2 border-slate-200 text-center font-semibold"
                   />
                 </div>
@@ -284,22 +311,23 @@ export default function HostSession() {
                 <span className="text-sm font-semibold text-slate-700">
                   Points per correct answer
                 </span>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={session.pointsPerCorrect ?? 1}
-                  onChange={(e) =>
-                    updateSession(session.code, {
-                      pointsPerCorrect: Math.max(
-                        0,
-                        parseInt(e.target.value, 10) || 0,
-                      ),
-                    })
-                  }
-                  className="w-20 px-2 py-1 rounded-lg border-2 border-slate-200 text-center font-semibold"
-                />
-              </div>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    inputMode="numeric"
+                    value={pointsInput}
+                    onChange={(e) => setPointsInput(e.target.value)}
+                    onBlur={commitPointsPerCorrect}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        commitPointsPerCorrect();
+                      }
+                    }}
+                    className="w-20 px-2 py-1 rounded-lg border-2 border-slate-200 text-center font-semibold"
+                  />
+                </div>
             </div>
 
             <button

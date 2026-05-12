@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useFirebase } from "../../context/FirebaseContext.jsx";
 import { useRole } from "../../context/RoleContext.jsx";
+import { detectInAppBrowser } from "../../utils/helpers.js";
 
 export default function TeacherRegister() {
   const { user, register, loading, error } = useFirebase();
@@ -13,8 +14,17 @@ export default function TeacherRegister() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [formError, setFormError] = useState(null);
+  const [browserContext, setBrowserContext] = useState({
+    isInApp: false,
+    isMessenger: false,
+    browserName: null,
+  });
 
   const from = location.state?.from?.pathname || "/teacher";
+
+  useEffect(() => {
+    setBrowserContext(detectInAppBrowser());
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -63,6 +73,18 @@ export default function TeacherRegister() {
             performance.
           </p>
         </div>
+
+        {browserContext.isInApp && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            If you plan to use Google sign-in later, open this app in Chrome or
+            Safari instead of{" "}
+            <span className="font-semibold">
+              {browserContext.browserName || "this in-app browser"}
+            </span>
+            . In-app browsers can block the browser storage Firebase needs for
+            OAuth.
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <label className="block">

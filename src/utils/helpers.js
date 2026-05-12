@@ -54,3 +54,41 @@ export function getUserFirstName(user) {
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 }
+
+export function detectInAppBrowser(userAgent) {
+  const ua =
+    userAgent ||
+    (typeof navigator !== "undefined" ? navigator.userAgent || "" : "");
+  const normalized = ua.toLowerCase();
+
+  const isMessenger =
+    normalized.includes("fb_iab") ||
+    normalized.includes("fbav") ||
+    normalized.includes("messenger");
+  const isInstagram = normalized.includes("instagram");
+  const isLine = normalized.includes("line/");
+  const isTiktok = normalized.includes("musical_ly") || normalized.includes("tiktok");
+  const isWebView =
+    normalized.includes("wv") ||
+    (/android/.test(normalized) &&
+      normalized.includes("version/") &&
+      !normalized.includes("chrome/"));
+
+  const isInApp = isMessenger || isInstagram || isLine || isTiktok || isWebView;
+
+  return {
+    isInApp,
+    isMessenger,
+    browserName: isMessenger
+      ? "Messenger"
+      : isInstagram
+        ? "Instagram"
+        : isLine
+          ? "LINE"
+          : isTiktok
+            ? "TikTok"
+            : isWebView
+              ? "in-app browser"
+              : null,
+  };
+}

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useFirebase } from "../../context/FirebaseContext.jsx";
 import { useRole } from "../../context/RoleContext.jsx";
+import { detectInAppBrowser } from "../../utils/helpers.js";
 
 export default function TeacherLogin() {
   const { user, login, loginWithGoogle, resetPassword, loading, error } =
@@ -13,8 +14,17 @@ export default function TeacherLogin() {
   const [password, setPassword] = useState("");
   const [formError, setFormError] = useState(null);
   const [resetMessage, setResetMessage] = useState(null);
+  const [browserContext, setBrowserContext] = useState({
+    isInApp: false,
+    isMessenger: false,
+    browserName: null,
+  });
 
   const from = location.state?.from?.pathname || "/teacher";
+
+  useEffect(() => {
+    setBrowserContext(detectInAppBrowser());
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -85,6 +95,17 @@ export default function TeacherLogin() {
           </p>
         </div>
 
+        {browserContext.isInApp && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Google sign-in may fail inside{" "}
+            <span className="font-semibold">
+              {browserContext.browserName || "this in-app browser"}
+            </span>
+            . Open this link in Chrome or Safari for the most reliable login
+            experience.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <label className="block">
             <span className="text-sm font-semibold text-slate-700">Email</span>
@@ -142,10 +163,12 @@ export default function TeacherLogin() {
           <button
             type="button"
             onClick={handleGoogleSignIn}
-            disabled={loading}
+            disabled={loading || browserContext.isInApp}
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Sign in with Google
+            {browserContext.isInApp
+              ? "Open in browser for Google sign-in"
+              : "Sign in with Google"}
           </button>
         </form>
 
