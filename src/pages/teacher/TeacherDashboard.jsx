@@ -1,13 +1,19 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuiz } from "../../context/QuizContext";
 import { useFirebase } from "../../context/FirebaseContext.jsx";
 import { formatDate } from "../../utils/helpers";
 import { getUserFirstName } from "../../utils/helpers";
 
 export default function TeacherDashboard() {
-  const { quizzes, quizzesLoading, quizzesError, deleteQuiz, createSession } =
-    useQuiz();
+  const {
+    quizzes,
+    quizzesLoading,
+    quizzesError,
+    deleteQuiz,
+    createSession,
+    sessions,
+  } = useQuiz();
   const { user, updateTeacherProfile, loading } = useFirebase();
   const navigate = useNavigate();
   const teacherFirstName = getUserFirstName(user);
@@ -24,6 +30,20 @@ export default function TeacherDashboard() {
   const displayedQuizzes = user
     ? quizzes.filter((q) => q.isSample || q.teacherId === user.uid)
     : quizzes;
+  const activeSession = useMemo(() => {
+    if (!user) return null;
+
+    return Object.values(sessions)
+      .filter(
+        (session) =>
+          session.hostTeacherId === user.uid && session.status !== "finished",
+      )
+      .sort((left, right) => {
+        const leftTime = new Date(left.createdAt || 0).getTime();
+        const rightTime = new Date(right.createdAt || 0).getTime();
+        return rightTime - leftTime;
+      })[0] || null;
+  }, [sessions, user]);
 
   const handleHost = async (quizId) => {
     if (!user) {
@@ -246,6 +266,23 @@ export default function TeacherDashboard() {
             <p className="text-slate-600 mt-1">
               Create, manage, and host quizzes for your classroom.
             </p>
+            {activeSession && (
+              <div className="mt-4 inline-flex flex-wrap items-center gap-3 rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3">
+                <span className="text-sm font-semibold text-brand-700">
+                  Active Session:{" "}
+                  <span className="font-mono tracking-wider">
+                    {activeSession.code}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/teacher/host/${activeSession.code}`)}
+                  className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-brand-700 border border-brand-200 hover:bg-brand-100 transition"
+                >
+                  Return to Session
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
