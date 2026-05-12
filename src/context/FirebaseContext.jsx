@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { auth, authReady } from "../firebase.js";
 import {
+  fetchSignInMethodsForEmail,
   GoogleAuthProvider,
   updateProfile,
   onAuthStateChanged,
@@ -74,7 +75,33 @@ export function FirebaseProvider({ children }) {
       setUser(credentials.user);
       return credentials.user;
     } catch (err) {
-      setError(getAuthErrorMessage(err, "Unable to sign in."));
+      let nextErrorMessage = getAuthErrorMessage(err, "Unable to sign in.");
+
+      if (
+        err?.code === "auth/invalid-credential" ||
+        err?.code === "auth/invalid-login-credentials"
+      ) {
+        try {
+          const signInMethods = await fetchSignInMethodsForEmail(auth, email);
+
+          if (!signInMethods.length) {
+            nextErrorMessage =
+              "No account was found for this email. Please create an account first.";
+          } else if (
+            signInMethods.includes("google.com") &&
+            !signInMethods.includes("password")
+          ) {
+            nextErrorMessage =
+              "This email is registered through Google. Please sign in with Google.";
+          } else {
+            nextErrorMessage = "Incorrect password or invalid credentials.";
+          }
+        } catch {
+          nextErrorMessage = "Incorrect password or invalid credentials.";
+        }
+      }
+
+      setError(nextErrorMessage);
       throw err;
     } finally {
       setLoading(false);
