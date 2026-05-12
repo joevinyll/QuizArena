@@ -1,10 +1,4 @@
-import {
-  useParams,
-  useNavigate,
-  Link,
-  useBlocker,
-  useBeforeUnload,
-} from "react-router-dom";
+import { useParams, useNavigate, Link, useBeforeUnload } from "react-router-dom";
 import { useQuiz } from "../../context/QuizContext";
 import SessionCodeDisplay from "../../components/SessionCodeDisplay";
 import ProgressBar from "../../components/ProgressBar";
@@ -35,7 +29,6 @@ export default function HostSession() {
     Boolean(session) &&
     !allowNavigationRef.current &&
     (session.status === "lobby" || session.status === "running");
-  const navigationBlocker = useBlocker(shouldBlockNavigation);
 
   // Count answers for current question
   const answerStats = useMemo(() => {
@@ -100,29 +93,49 @@ export default function HostSession() {
   );
 
   useEffect(() => {
-    if (navigationBlocker.state !== "blocked" || !session) return;
+    if (!shouldBlockNavigation || !session) return;
 
-    const confirmAndEnd = async () => {
-      const shouldEndSession = window.confirm("Are you sure to end session?");
+    const handleDocumentClick = async (event) => {
+      const link = event.target.closest("a");
+      if (!link) return;
 
-      if (!shouldEndSession) {
-        navigationBlocker.reset();
+      const href = link.getAttribute("href");
+      if (!href || href.startsWith("#") || href.startsWith("mailto:")) return;
+      if (link.target && link.target !== "_self") return;
+
+      const targetUrl = new URL(link.href, window.location.href);
+      const currentUrl = new URL(window.location.href);
+
+      if (targetUrl.origin !== currentUrl.origin) return;
+      if (
+        targetUrl.pathname === currentUrl.pathname &&
+        targetUrl.search === currentUrl.search &&
+        targetUrl.hash === currentUrl.hash
+      ) {
         return;
       }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const shouldEndSession = window.confirm("Are you sure to end session?");
+      if (!shouldEndSession) return;
 
       allowNavigationRef.current = true;
       try {
         await endSession(session.code);
-        navigationBlocker.proceed();
+        navigate(`${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`);
       } catch {
         allowNavigationRef.current = false;
-        navigationBlocker.reset();
         alert("Unable to end the session right now. Please try again.");
       }
     };
 
-    confirmAndEnd();
-  }, [navigationBlocker, endSession, session]);
+    document.addEventListener("click", handleDocumentClick, true);
+    return () => {
+      document.removeEventListener("click", handleDocumentClick, true);
+    };
+  }, [shouldBlockNavigation, endSession, navigate, session]);
 
   const teamStandings = useMemo(() => {
     if (!session?.teamMode) return [];
